@@ -38,6 +38,10 @@ if ! php --ri uploadprogress > /dev/null 2>&1; then
   sudo pecl install uploadprogress
   echo 'extension=uploadprogress.so' | sudo tee /usr/local/etc/php/conf.d/uploadprogress.ini
 fi
+
+# Install the pgvector extension.
+source .devpanel/pgvector_installer.sh
+
 # Reload Apache if it's running.
 if $PECL_UPDATED && sudo /etc/init.d/apache2 status > /dev/null; then
   sudo /etc/init.d/apache2 reload
