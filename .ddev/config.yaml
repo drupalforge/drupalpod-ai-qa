@@ -18,6 +18,7 @@ composer_version: "2"
 web_environment:
     - APP_ROOT=$DDEV_COMPOSER_ROOT
     - WEB_ROOT=$DDEV_COMPOSER_ROOT/$DDEV_DOCROOT
+    - DP_STARTER_TEMPLATE=cms
     - DB_HOST=db
     - DB_PORT=3306
     - DB_USER=db

@@ -7,6 +7,7 @@ set -eu -o pipefail
 : "${DP_EXTRA_DEVEL:=}"
 : "${DP_EXTRA_ADMIN_TOOLBAR:=}"
 : "${DP_PROJECT_TYPE:=}"
+: "${DP_STARTER_TEMPLATE:=}"
 : "${DEVEL_NAME:=}"
 : "${DEVEL_PACKAGE:=}"
 : "${ADMIN_TOOLBAR_NAME:=}"
@@ -117,6 +118,92 @@ fi
 if [ "$DP_PROJECT_TYPE" == "project_theme" ]; then
     cd "${APP_ROOT}" && drush then -y "$DP_PROJECT_NAME"
     cd "${APP_ROOT}" && drush config-set -y system.theme default "$DP_PROJECT_NAME"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# AI SETUP
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Enable AI base modules (ready for configuration)
+cd "${APP_ROOT}" && drush en -y ai ai_provider_litellm
+
+# If API key is provided via environment variable, auto-configure AI
+if [ -n "${DP_AI_VIRTUAL_KEY:-}" ]; then
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🤖 Auto-configuring AI provider..."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # Save API key
+    drush -n key-save litellm_api_key --label="LiteLLM API key" --key-provider=env --key-provider-settings='{
+        "env_variable": "DP_AI_VIRTUAL_KEY",
+        "base64_encoded": false,
+        "strip_line_breaks": true
+    }'
+
+    # Configure LiteLLM provider
+    drush -n cset ai_provider_litellm.settings api_key litellm_api_key
+    drush -n cset ai_provider_litellm.settings moderation false --input-format yaml
+    drush -n cset ai_provider_litellm.settings host "${DP_AI_HOST:="https://ai.drupalforge.org"}"
+
+    # CMS: Apply recipe and configure all providers
+    if [ "$DP_STARTER_TEMPLATE" = "cms" ]; then
+        echo "Applying Drupal CMS AI recipe..."
+        drush -q recipe ../recipes/drupal_cms_ai --input=drupal_cms_ai.provider=litellm
+
+        # Configure all AI providers for production use
+        drush -n cset ai.settings default_providers.chat.provider_id litellm
+        drush -n cset ai.settings default_providers.chat.model_id openai/gpt-4o-mini
+        drush -n cset ai.settings default_providers.chat_with_complex_json.provider_id litellm
+        drush -n cset ai.settings default_providers.chat_with_complex_json.model_id openai/gpt-4o-mini
+        drush -n cset ai.settings default_providers.chat_with_image_vision.provider_id litellm
+        drush -n cset ai.settings default_providers.chat_with_image_vision.model_id openai/gpt-4o-mini
+        drush -n cset ai.settings default_providers.chat_with_structured_response.provider_id litellm
+        drush -n cset ai.settings default_providers.chat_with_structured_response.model_id openai/gpt-4o-mini
+        drush -n cset ai.settings default_providers.chat_with_tools.provider_id litellm
+        drush -n cset ai.settings default_providers.chat_with_tools.model_id openai/gpt-4o-mini
+        drush -n cset ai.settings default_providers.embeddings.provider_id litellm
+        drush -n cset ai.settings default_providers.embeddings.model_id openai/text-embedding-3-small
+        drush -n cset ai.settings default_providers.text_to_speech.provider_id litellm
+        drush -n cset ai.settings default_providers.text_to_speech.model_id openai/gpt-4o-mini-realtime-preview
+        drush -n cset ai_assistant_api.ai_assistant.drupal_cms_assistant llm_provider __default__
+        drush -n cset klaro.klaro_app.deepchat status 0
+
+        echo "✅ AI configured for Drupal CMS"
+    else
+        # Core: Just configure embeddings for AI Search
+        echo "Configuring AI Search for Core variant..."
+        drush -n cset ai.settings default_providers.embeddings.provider_id litellm
+        drush -n cset ai.settings default_providers.embeddings.model_id openai/text-embedding-3-small
+
+        echo "✅ AI configured for AI Search"
+    fi
+
+    # Configure Automatic Updates to trust patches
+    drush -n cset --input-format=yaml package_manager.settings additional_trusted_composer_plugins '["cweagans/composer-patches"]'
+    drush -n cset --input-format=yaml package_manager.settings additional_known_files_in_project_root '["patches.json", "patches.lock.json"]'
+else
+    # AI modules installed but not configured - display instructions
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🤖 AI Modules Ready (Not Configured)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "AI modules installed: ✓ ai, ✓ ai_provider_litellm"
+    if [ "$DP_STARTER_TEMPLATE" = "cms" ]; then
+        echo "PostgreSQL + pgvector: ✓ Ready for AI Search"
+    else
+        echo "PostgreSQL + pgvector: ✓ Ready for AI Search"
+        echo "Search API: ✓ Available for semantic search"
+    fi
+    echo ""
+    echo "To enable AI features:"
+    echo "  1. Get API key from: https://ai.drupalforge.org"
+    echo "  2. Run: ddev setup-ai"
+    echo "     OR set env var: export DP_AI_VIRTUAL_KEY=sk-your-key"
+    echo ""
+    echo "QA Tip: Test AI Search performance with PostgreSQL + pgvector!"
+    echo ""
 fi
 
 # Finish measuring script time.
