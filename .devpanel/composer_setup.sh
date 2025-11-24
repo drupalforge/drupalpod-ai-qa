@@ -2,35 +2,27 @@
 set -eu -o pipefail
 cd $APP_ROOT
 
-# Determine which starter template to use (default: recommended-project)
-# Options: "recommended" or "cms"
-STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-recommended}"
+# Determine which starter template to use
+# Options: "cms" or "core"
+STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-cms}"
 
-# Set the composer package based on template choice
+# Determine the composer package and version
 if [ "$STARTER_TEMPLATE" = "cms" ]; then
     COMPOSER_PROJECT="drupal/cms"
-    # For Drupal CMS, use latest version if DP_CORE_VERSION is set to a Drupal core version
-    # CMS has its own versioning (1.0.0, 1.1.0, etc) separate from core
-    # If DP_CORE_VERSION is empty or looks like a core version, use latest CMS
-    if [ -z "$DP_CORE_VERSION" ] || [[ "$DP_CORE_VERSION" =~ ^[0-9]+\.[0-9]+\. ]]; then
-        install_version=""  # Use latest
-    else
-        # Allow explicit CMS versions like "1.1.x-dev" or "1.0.0"
-        d="$DP_CORE_VERSION"
-        case $d in
-        *.x)
-            install_version="$d"-dev
-            ;;
-        *)
-            install_version=~"$d"
-            ;;
-        esac
-    fi
+    # For CMS versions: 1.x, 1.0.0, 2.0.0, etc.
+    d="$DP_VERSION"
+    case $d in
+    *.x)
+        install_version="$d"-dev
+        ;;
+    *)
+        install_version="$d"
+        ;;
+    esac
 else
     COMPOSER_PROJECT="drupal/recommended-project"
-    # For versions end with x - add `-dev` suffix (ie. 9.3.x-dev)
-    # For versions without x - add `~` prefix (ie. ~9.2.0)
-    d="$DP_CORE_VERSION"
+    # For core versions: 11.x, 11.2.8, etc.
+    d="$DP_VERSION"
     case $d in
     *.x)
         install_version="$d"-dev
@@ -41,17 +33,18 @@ else
     esac
 fi
 
-if [ ! -f composer.json ]; then
-    # Create required composer.json and composer.lock files
-    if [ -n "$install_version" ]; then
-        time composer create-project -n --no-install "$COMPOSER_PROJECT":"$install_version" temp-composer-files
-    else
-        time composer create-project -n --no-install "$COMPOSER_PROJECT" temp-composer-files
-    fi
-    # Copy all files and directories (including hidden files) from temp directory
-    cp -r "$APP_ROOT"/temp-composer-files/. "$APP_ROOT"/.
-    rm -rf "$APP_ROOT"/temp-composer-files
+# Always regenerate composer.json from the selected template
+if [ -n "$install_version" ]; then
+    time composer create-project -n --no-install "$COMPOSER_PROJECT":"$install_version" temp-composer-files
+else
+    time composer create-project -n --no-install "$COMPOSER_PROJECT" temp-composer-files
 fi
+# Copy all files and directories (including hidden files) from temp directory
+cp -r "$APP_ROOT"/temp-composer-files/. "$APP_ROOT"/.
+rm -rf "$APP_ROOT"/temp-composer-files
+
+# Set minimum-stability to dev to allow alpha/beta packages (needed for CMS 2.x)
+composer config minimum-stability dev
 
 # Programmatically fix Composer 2.2 allow-plugins to avoid errors
 composer config --no-plugins allow-plugins.composer/installers true
@@ -63,16 +56,6 @@ composer config --no-plugins allow-plugins.phpstan/extension-installer true
 composer config --no-plugins allow-plugins.mglaman/composer-drupal-lenient true
 composer config --no-plugins allow-plugins.php-http/discovery true
 composer config --no-plugins allow-plugins.tbachert/spi false
-
-# Add project source code as symlink (to repos/name_of_project)
-# double quotes explained - https://stackoverflow.com/a/1250279/5754049
-if [ -n "$DP_PROJECT_NAME" ]; then
-    composer --no-plugins config \
-        repositories.core1 \
-        '{"type": "path", "url": "repos/'"$DP_PROJECT_NAME"'", "options": {"symlink": true}}'
-
-    composer --no-plugins config minimum-stability dev
-fi
 
 # Scaffold settings.php.
 composer config -jm extra.drupal-scaffold.file-mapping '{
@@ -303,6 +286,7 @@ if [ "$STARTER_TEMPLATE" = "cms" ]; then
     composer require -n --no-update \
         cweagans/composer-patches:^2@beta \
         drupal/ai_provider_litellm:@beta \
+        drush/drush:^13.6 \
         codemirror/codemirror \
         jquery/inputmask \
         jquery/intl-tel-input \
@@ -323,6 +307,7 @@ else
     composer require -n --no-update \
         cweagans/composer-patches:^2@beta \
         drupal/ai_provider_litellm:@beta \
+        drush/drush:^13.6 \
         drupal/search_api \
         drupal/search_api_db
 fi

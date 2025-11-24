@@ -26,7 +26,7 @@ fi
 if [[ -n "$DB_SYNC_VOL" ]]; then
   if [[ ! -f "/var/www/build/.devpanel/init-container.sh" ]]; then
     echo  'Sync volume...'
-    sudo chown -R 1000:1000 /var/www/build 
+    sudo chown -R 1000:1000 /var/www/build
     rsync -av --delete --delete-excluded $APP_ROOT/ /var/www/build
   fi
 fi
@@ -35,3 +35,7 @@ drush -n updb
 echo
 echo 'Run cron.'
 drush cron
+echo
+echo 'Populate caches.'
+drush cache:warm
+$APP_ROOT/.devpanel/warm

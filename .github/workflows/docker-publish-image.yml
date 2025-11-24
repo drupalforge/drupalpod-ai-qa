@@ -33,7 +33,7 @@ jobs:
           DB_USER: user
           DB_PASSWORD: password
           DB_DRIVER: mysql
-          DP_CORE_VERSION: ${{ inputs.drupal_core_version || '' }}
+          DP_VERSION: ${{ inputs.drupal_core_version || '' }}
         ports:
           - 80:80
         volumes:

@@ -11,9 +11,34 @@ echo "$SSHKey" >>~/.ssh/known_hosts
 cp "${APP_ROOT}"/.gitpod/drupal/templates/git-exclude.template "${APP_ROOT}"/.git/info/exclude
 
 # Get the required repo ready
-if [ "$DP_PROJECT_TYPE" == "project_core" ]; then
+if [ "$DP_STARTER_TEMPLATE" = "cms" ] && [ "$DP_PROJECT_TYPE" == "project_core" ]; then
+    # Clone Drupal CMS repo
+    if git submodule status repos/cms > /dev/null 2>&1; then
+        time git submodule update --init --recursive
+    else
+        time git submodule add -f https://git.drupalcode.org/project/cms.git repos/cms
+        time git config -f .gitmodules submodule."repos/cms".ignore dirty
+    fi
+
+    # For CMS, check out the version branch/tag
+    d="$DP_VERSION"
+    case $d in
+    *.x)
+        checkout_type=origin
+        ;;
+    *)
+        checkout_type=tags
+        ;;
+    esac
+
+    cd "${APP_ROOT}"/repos/cms &&
+        git fetch origin &&
+        git fetch --all --tags &&
+        git checkout "$checkout_type"/"$DP_VERSION"
+
+elif [ "$DP_PROJECT_TYPE" == "project_core" ]; then
     # Find if requested core version is dev or stable
-    d="$DP_CORE_VERSION"
+    d="$DP_VERSION"
     case $d in
     *.x)
         # If dev - use git checkout origin/*
@@ -37,7 +62,7 @@ if [ "$DP_PROJECT_TYPE" == "project_core" ]; then
     cd "${APP_ROOT}"/repos/drupal &&
         git fetch origin &&
         git fetch --all --tags &&
-        git checkout "$checkout_type"/"$DP_CORE_VERSION"
+        git checkout "$checkout_type"/"$DP_VERSION"
 
     # Ignore specific directories during Drupal core development
     cp "${APP_ROOT}"/.gitpod/drupal/templates/git-exclude.template "${APP_ROOT}"/.git/modules/repos/drupal/info/exclude
