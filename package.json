@@ -1,0 +1,20 @@
+{
+  "name": "drupalpod-ai-qa",
+  "version": "1.0.0",
+  "description": "DrupalPod AI QA Environment with automated testing",
+  "scripts": {
+    "test": "bats tests/*.bats",
+    "test:unit": "bats tests/clone_ai_modules.bats tests/fallback_setup.bats",
+    "test:integration": "bats tests/integration.bats",
+    "test:verbose": "bats -t tests/*.bats"
+  },
+  "devDependencies": {
+    "bats": "^1.11.0"
+  },
+  "keywords": [
+    "drupal",
+    "ai",
+    "testing",
+    "ddev"
+  ]
+}

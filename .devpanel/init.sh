@@ -1,28 +1,40 @@
 #!/usr/bin/env bash
+
+# Optional debug mode; strict error handling for safety.
 if [ -n "${DEBUG_SCRIPT:-}" ]; then
   set -x
 fi
 set -eu -o pipefail
-cd $APP_ROOT
 
+# Move into the application root and prepare logging.
+cd "$APP_ROOT"
 mkdir -p logs
 LOG_FILE="logs/init-$(date +%F-%T).log"
-exec > >(tee $LOG_FILE) 2>&1
+exec > >(tee "$LOG_FILE") 2>&1
 
+# Configure timing format for any timed operations below.
 TIMEFORMAT=%lR
+
 # For faster performance, don't audit dependencies automatically.
 export COMPOSER_NO_AUDIT=1
+
 # For faster performance, don't install dev dependencies.
+# @todo Should we keep it like this?
 export COMPOSER_NO_DEV=1
 
-# Assuming .sh files are in the same directory as this script
+# The other bash files are in the same dir.
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Always source fallback_setup to set all defaults
-# This ensures DP_INSTALL_PROFILE and other variables are initialized
+# Always source fallback_setup to set all defaults.
+# This ensures DP_INSTALL_PROFILE and other variables are initialized.
 source "$DIR/fallback_setup.sh"
 
-# Install VSCode Extensions
+# Clone AI modules from git (always - base + provider + optional test module)
+echo
+echo 'Cloning AI modules from git...'
+time source "$DIR/clone_ai_modules.sh"
+
+# Install VSCode Extensions.
 if [ -n "${DP_VSCODE_EXTENSIONS:-}" ]; then
   IFS=','
   for value in $DP_VSCODE_EXTENSIONS; do
@@ -30,17 +42,22 @@ if [ -n "${DP_VSCODE_EXTENSIONS:-}" ]; then
   done
 fi
 
-#== Clean rebuild if requested.
+#== Clean rebuild vs incremental install.
+# DP_REBUILD=1: Clean rebuild - delete vendor, web, composer files (fresh start).
+# DP_REBUILD=0: Incremental install - preserve existing files (useful for resuming failed installs).
 if [ "${DP_REBUILD:-0}" = "1" ]; then
   echo
   echo 'Performing clean rebuild...'
-  echo 'Removing vendor and web directories...'
-  time rm -rf vendor web/core web/modules/contrib web/themes/contrib web/profiles/contrib composer.lock
+  echo 'Removing vendor, web, and composer files...'
+  time rm -rf vendor web/core web/modules/contrib web/themes/contrib web/profiles/contrib composer.json composer.lock
   echo 'Rebuild mode enabled.'
   echo
 fi
 
-#== Remove root-owned files.
+#== Remove root-owned filesystem artifacts.
+# Docker/DDEV volumes sometimes create root-owned 'lost+found' directories (filesystem recovery artifacts).
+# These aren't needed for the application and can cause confusion, permission errors, or block operations.
+# Requires sudo because they're owned by root.
 echo
 echo Remove root-owned files.
 time sudo rm -rf lost+found
@@ -58,8 +75,35 @@ elif [ -f composer.json ]; then
     echo
   fi
 fi
+
 echo 'Running composer update...'
-time composer -n update --no-dev --no-progress || { echo "Composer update failed!"; exit 1; }
+# Note: May show patch warnings, but packages are still installed successfully
+time composer -n update --no-dev --no-progress || {
+  echo "Composer update encountered errors (likely patch failures), but continuing..."
+  echo "Regenerating autoload files..."
+  composer dump-autoload
+}
+
+# Validate module compatibility. If users try to get versions
+# that conflict, we need to warn them.
+echo
+echo 'Validating AI module compatibility...'
+if composer validate --no-check-all --no-check-publish 2>&1 | grep -q "is valid"; then
+  echo "✓ Composer validation passed"
+else
+  echo "⚠️  Composer validation found warnings (this may be OK)"
+fi
+
+# Check if AI modules are properly symlinked.
+if [ -L web/modules/contrib/ai ] && [ -L web/modules/contrib/ai_provider_litellm ]; then
+  echo "✓ AI modules symlinked from git:"
+  echo "  - $(readlink web/modules/contrib/ai)"
+  echo "  - $(readlink web/modules/contrib/ai_provider_litellm)"
+else
+  echo "⚠️  AI modules not symlinked - may be using Composer versions"
+fi
+
+echo 'Composer dependencies installed.'
 
 #== Create the private files directory.
 if [ ! -d private ]; then

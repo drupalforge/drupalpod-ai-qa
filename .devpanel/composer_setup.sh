@@ -2,11 +2,11 @@
 set -eu -o pipefail
 cd $APP_ROOT
 
-# Determine which starter template to use
+# Determine which starter template to use.
 # Options: "cms" or "core"
 STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-cms}"
 
-# Determine the composer package and version
+# Determine the composer package and version.
 if [ "$STARTER_TEMPLATE" = "cms" ]; then
     COMPOSER_PROJECT="drupal/cms"
     # For CMS versions: 1.x, 1.0.0, 2.0.0, etc.
@@ -33,20 +33,38 @@ else
     esac
 fi
 
-# Always regenerate composer.json from the selected template
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Generate composer.json from CMS/Core template using temp directory
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Why do we copy it to temp?
+# - `composer create-project` requires an empty/non-existent target directory
+# - Our project root may have existing files (git, config, etc.)
+# - Solution: Create in temp, copy everything over, then customize composer.json
+# - This is safer than deleting project root first (preserves files if script fails)
+#
+# Clean up temp directory if it exists from previous runs.
+rm -rf "$APP_ROOT"/temp-composer-files
+
+# Create the project template in temp directory.
 if [ -n "$install_version" ]; then
     time composer create-project -n --no-install "$COMPOSER_PROJECT":"$install_version" temp-composer-files
 else
     time composer create-project -n --no-install "$COMPOSER_PROJECT" temp-composer-files
 fi
-# Copy all files and directories (including hidden files) from temp directory
+
+# Copy all files (including hidden files) from temp to project root.
 cp -r "$APP_ROOT"/temp-composer-files/. "$APP_ROOT"/.
+
+# Clean up temp directory.
 rm -rf "$APP_ROOT"/temp-composer-files
 
-# Set minimum-stability to dev to allow alpha/beta packages (needed for CMS 2.x)
+# Set minimum-stability to dev to allow alpha/beta packages (needed for dev versions).
 composer config minimum-stability dev
 
-# Programmatically fix Composer 2.2 allow-plugins to avoid errors
+# Allow patches to fail without stopping installation.
+composer config extra.composer-exit-on-patch-failure false
+
+# Programmatically fix Composer 2.2 allow-plugins to avoid errors.
 composer config --no-plugins allow-plugins.composer/installers true
 composer config --no-plugins allow-plugins.drupal/core-project-message true
 composer config --no-plugins allow-plugins.drupal/core-vendor-hardening true
@@ -68,16 +86,47 @@ composer config scripts.post-drupal-scaffold-cmd \
     'cd web/sites/default && test -z "$(grep '\''include \$devpanel_settings;'\'' settings.php)" && patch -Np1 -r /dev/null < $APP_ROOT/.devpanel/drupal-settings.patch || :'
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# AI MODULES FROM GIT (Path Repositories)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Add path repositories ONLY for compatible AI modules
+# Incompatible modules are cloned (available in repos/) but not added to composer
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if [ -n "${COMPATIBLE_AI_MODULES:-}" ]; then
+    echo "Adding path repositories for compatible AI modules..."
+
+    IFS=',' read -ra MODULES <<< "$COMPATIBLE_AI_MODULES"
+    for module in "${MODULES[@]}"; do
+        module=$(echo "$module" | xargs)  # Trim whitespace
+
+        if [ -z "$module" ]; then
+            continue
+        fi
+
+        if [ -d "repos/$module" ]; then
+            echo "  - Adding path repository for: $module"
+            composer config --no-plugins repositories."$module"-git \
+                "{\"type\": \"path\", \"url\": \"repos/$module\", \"options\": {\"symlink\": true}}"
+
+            # Require from path (use *@dev to accept version from module's composer.json).
+            composer require -n --no-update "drupal/$module:*@dev"
+        fi
+    done
+
+    echo "Path repositories added for compatible AI modules!"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # AI DEPENDENCIES
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Enable Composer Patches plugin (useful for applying patches from drupal.org)
+# Enable Composer Patches plugin (needed for applying patches from drupal.org).
 composer config --no-plugins allow-plugins.cweagans/composer-patches true
 
 if [ "$STARTER_TEMPLATE" = "cms" ]; then
-    echo "Adding CMS AI dependencies (full setup with webform libraries)..."
+    echo "Adding CMS dependencies (full setup with webform libraries)..."
 
-    # Add JavaScript library repositories for Webform support
+    # Add JavaScript library repositories for Webform support.
     composer config repositories.tippyjs '{
         "type": "package",
         "package": {
@@ -282,10 +331,9 @@ if [ "$STARTER_TEMPLATE" = "cms" ]; then
         }
     }'
 
-    # Require all CMS dependencies (AI + Webform libraries)
+    # Require all CMS dependencies (Webform libraries only - AI modules come from git).
     composer require -n --no-update \
         cweagans/composer-patches:^2@beta \
-        drupal/ai_provider_litellm:@beta \
         drush/drush:^13.6 \
         codemirror/codemirror \
         jquery/inputmask \
@@ -303,11 +351,11 @@ if [ "$STARTER_TEMPLATE" = "cms" ]; then
 else
     echo "Adding Core AI dependencies (lean setup for quick PR/issue testing)..."
 
-    # Core variant: AI + Search only, no webform bloat
+    # Core variant: Search only - AI modules come from git via path repos.
     composer require -n --no-update \
         cweagans/composer-patches:^2@beta \
-        drupal/ai_provider_litellm:@beta \
         drush/drush:^13.6 \
         drupal/search_api \
-        drupal/search_api_db
+        drupal/search_api_db \
+        drupal/token
 fi

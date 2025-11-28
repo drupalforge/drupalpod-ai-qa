@@ -2,3 +2,19 @@
 	path = repos/drupal
 	url = https://git.drupalcode.org/project/drupal.git
 	ignore = dirty
+[submodule "repos/ai"]
+	path = repos/ai
+	url = https://git.drupalcode.org/project/ai.git
+	ignore = dirty
+[submodule "repos/ai_provider_litellm"]
+	path = repos/ai_provider_litellm
+	url = https://git.drupalcode.org/project/ai_provider_litellm.git
+	ignore = dirty
+[submodule "repos/ai_search"]
+	path = repos/ai_search
+	url = https://git.drupalcode.org/project/ai_search.git
+	ignore = dirty
+[submodule "repos/ai_agents"]
+	path = repos/ai_agents
+	url = https://git.drupalcode.org/project/ai_agents.git
+	ignore = dirty
