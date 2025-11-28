@@ -13,6 +13,8 @@ composer.lock
 patches.lock.json
 .gitattributes
 .editorconfig
+"Drupal Core Development Composer Project.md"
+README.md
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Runtime / Generated

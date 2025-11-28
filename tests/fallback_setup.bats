@@ -38,35 +38,35 @@ setup() {
 }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# AI Version Auto-Detection Tests
+# AI Version Behavior Tests (Dependency-Driven, No Hardcoded Defaults)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-@test "CMS 2.x → AI 1.2.x" {
+@test "AI version defaults to empty (auto-detect from test module)" {
     export DP_STARTER_TEMPLATE="cms"
     export DP_VERSION="2.0.x"
     source .devpanel/fallback_setup.sh
-    [ "$DP_AI_MODULE_VERSION" = "1.2.x" ]
+    [ -z "$DP_AI_MODULE_VERSION" ]
 }
 
-@test "CMS 1.x → AI 1.0.x" {
+@test "AI version stays empty for CMS 1.x (no hardcoded defaults)" {
     export DP_STARTER_TEMPLATE="cms"
     export DP_VERSION="1.x"
     source .devpanel/fallback_setup.sh
-    [ "$DP_AI_MODULE_VERSION" = "1.0.x" ]
+    [ -z "$DP_AI_MODULE_VERSION" ]
 }
 
-@test "Core 11.x → AI 1.2.x" {
+@test "AI version stays empty for Core 11.x (dependency-driven)" {
     export DP_STARTER_TEMPLATE="core"
     export DP_VERSION="11.x"
     source .devpanel/fallback_setup.sh
-    [ "$DP_AI_MODULE_VERSION" = "1.2.x" ]
+    [ -z "$DP_AI_MODULE_VERSION" ]
 }
 
-@test "Core 10.x → AI 1.0.x" {
+@test "AI version stays empty for Core 10.x (dependency-driven)" {
     export DP_STARTER_TEMPLATE="core"
     export DP_VERSION="10.x"
     source .devpanel/fallback_setup.sh
-    [ "$DP_AI_MODULE_VERSION" = "1.0.x" ]
+    [ -z "$DP_AI_MODULE_VERSION" ]
 }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -90,13 +90,13 @@ setup() {
     [ "$DP_AI_MODULE_VERSION" = "2.0.x" ]
 }
 
-@test "Empty DP_AI_MODULE_VERSION is treated as unset (auto-detect)" {
+@test "Empty DP_AI_MODULE_VERSION stays empty (dependency-driven)" {
     export DP_STARTER_TEMPLATE="core"
     export DP_VERSION="11.x"
     export DP_AI_MODULE_VERSION=""  # Empty string
     source .devpanel/fallback_setup.sh
     [ "$DP_AI_MODULE_VERSION_EXPLICIT" = "no" ]
-    [ "$DP_AI_MODULE_VERSION" = "1.2.x" ]  # Auto-detected
+    [ -z "$DP_AI_MODULE_VERSION" ]  # Stays empty
 }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

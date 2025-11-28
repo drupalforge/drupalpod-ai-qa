@@ -17,7 +17,7 @@ hooks:
 use_dns_when_possible: true
 composer_version: "2"
 web_environment:
-    # Set up DevPanel variables.
+    # Set up DevPanel variables. DO NOT CHANGE
     - APP_ROOT=$DDEV_COMPOSER_ROOT
     - WEB_ROOT=$DDEV_COMPOSER_ROOT/$DDEV_DOCROOT
     - DB_HOST=db
@@ -27,8 +27,51 @@ web_environment:
     - DB_NAME=db
     - DP_APP_ID=drupalpod_ai_qa
     - DB_DRIVER=mysql
-    # AI ecosystem modules to always try to clone (compatibility filtered)
     - DP_AI_MODULES=ai_provider_litellm,ai_search,ai_agents
+
+    - # ============================================================================
+    - # DevPanel / Drupal defaults - customisable
+    - # ============================================================================
+
+    - # ---------------------------------------------------------------------------
+    - # Direct mappings to your DDEV environment variables (keep names identical)
+    - # ---------------------------------------------------------------------------
+    - DP_STARTER_TEMPLATE=cms       # Starter template (e.g., core, demo, etc.)
+    - DP_VERSION=2.0.x              # Drupal version
+
+    - # ---------------------------------------------------------------------------
+    - # AI module / PR testing defaults
+    - # - DP_AI_MODULE_VERSION behavior:
+    - #   * Empty = Auto-detect from test module (recommended)
+    - #   * Set explicitly = Validate compatibility (fails if test module incompatible)
+    - # - DP_AI_ISSUE_FORK / DP_AI_ISSUE_BRANCH: test a PR for the base module
+    - # ---------------------------------------------------------------------------
+    - DP_AI_MODULE=ai                # Base AI module name
+    - DP_AI_MODULE_VERSION=          # Empty = auto-detect (or set explicitly to validate)
+    - DP_AI_ISSUE_FORK=
+    - DP_AI_ISSUE_BRANCH=
+
+    - # ---------------------------------------------------------------------------
+    - # Test any AI sub-module (ai_search, ai_agents, providers, etc.)
+    - # - Setting DP_TEST_MODULE will auto-detect required AI version!
+    - # - The script clones test module first, reads its AI requirement, then clones AI
+    - # - Use DP_TEST_MODULE_VERSION to pin a release-style version (optional)
+    - # - Use DP_TEST_MODULE_ISSUE_FORK / DP_TEST_MODULE_ISSUE_BRANCH to test PRs
+    - # ---------------------------------------------------------------------------
+    - DP_TEST_MODULE=                # Empty = use auto-detected AI version
+    - DP_TEST_MODULE_VERSION=        # Empty = use dev branch
+    - DP_TEST_MODULE_ISSUE_FORK=
+    - DP_TEST_MODULE_ISSUE_BRANCH=
+
+    - # ---------------------------------------------------------------------------
+    - # Optional: local or cloud API key for LiteLLM / provider testing (empty by default)
+    - # ---------------------------------------------------------------------------
+    - DP_AI_VIRTUAL_KEY=
+
+    - # ---------------------------------------------------------------------------
+    - # Set to 1 if you wish to rebuild the whole project from scratch
+    - # ---------------------------------------------------------------------------
+    - DP_REBUILD=1
 corepack_enable: false
 ddev_version_constraint: '>=1.24.0'
 

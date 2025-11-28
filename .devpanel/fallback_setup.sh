@@ -59,49 +59,12 @@ if [ -z "${DP_INSTALL_PROFILE+x}" ]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# AI MODULE CONFIGURATION (always use git for AI modules)
+# AI MODULE CONFIGURATION (Dependency-Driven Architecture)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-# Auto-detect compatible AI module version based on CMS/Core version
-if [ "$DP_STARTER_TEMPLATE" = "cms" ]; then
-    case "$DP_VERSION" in
-        2.0.x|2.x|2.0.*)
-            # CMS 2.x requires AI ^1.2
-            DEFAULT_AI_VERSION="1.2.x"
-            echo "Detected CMS 2.x → Using AI modules 1.2.x"
-            ;;
-        1.x|1.0.x|1.*.*)
-            # CMS 1.x requires AI ^1.0
-            DEFAULT_AI_VERSION="1.0.x"
-            echo "Detected CMS 1.x → Using AI modules 1.0.x"
-            ;;
-        *)
-            echo "⚠️  WARNING: Unknown CMS version '$DP_VERSION', defaulting to AI 1.2.x"
-            DEFAULT_AI_VERSION="1.2.x"
-            ;;
-    esac
-else
-    # Drupal Core
-    case "$DP_VERSION" in
-        11.*|11.x)
-            # Drupal 11.x works with AI ^1.2
-            DEFAULT_AI_VERSION="1.2.x"
-            echo "Detected Drupal Core 11.x → Using AI modules 1.2.x"
-            ;;
-        10.*|10.x)
-            # Drupal 10.x works with AI ^1.0
-            DEFAULT_AI_VERSION="1.0.x"
-            echo "Detected Drupal Core 10.x → Using AI modules 1.0.x"
-            ;;
-        *)
-            echo "⚠️  WARNING: Unknown Core version '$DP_VERSION', defaulting to AI 1.2.x"
-            DEFAULT_AI_VERSION="1.2.x"
-            ;;
-    esac
-fi
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# AI Module Configuration (Dependency-Driven Architecture)
+# AI version is dynamically determined from:
+# 1. Test module's composer.json (if DP_TEST_MODULE set)
+# 2. Latest dev branch (if not set)
+# No hardcoded version mappings - let dependencies drive the version!
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # AI base module (ALWAYS cloned from git)
@@ -109,12 +72,15 @@ export DP_AI_MODULE=${DP_AI_MODULE:-'ai'}
 
 # Track if user explicitly set AI version (for validation when testing modules)
 if [ -z "${DP_AI_MODULE_VERSION:-}" ]; then
-    # User didn't set it - use default and mark as auto-detected
-    export DP_AI_MODULE_VERSION="$DEFAULT_AI_VERSION"
+    # User didn't set it - leave empty for auto-detection from test module
+    # If no test module, clone_ai_modules.sh will use latest dev branch
+    export DP_AI_MODULE_VERSION=""
     export DP_AI_MODULE_VERSION_EXPLICIT="no"
+    echo "📦 AI version will be auto-detected from test module dependencies"
 else
     # User explicitly set it - validate compatibility when testing modules
     export DP_AI_MODULE_VERSION_EXPLICIT="yes"
+    echo "📦 AI version explicitly set to: $DP_AI_MODULE_VERSION"
 fi
 
 export DP_AI_ISSUE_FORK=${DP_AI_ISSUE_FORK:-''}

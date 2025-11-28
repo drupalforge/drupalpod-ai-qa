@@ -131,10 +131,10 @@ echo
 if [ "${DP_REBUILD:-0}" = "1" ] || ! drush status --field=bootstrap | grep -q "Drupal bootstrap"; then
   if [ -z "$DP_INSTALL_PROFILE" ]; then
     echo 'Install Drupal.'
-    time drush -n si
+    time drush -n si --account-name=admin --account-pass=admin
   else
     echo 'Install Drupal with profile: '"$DP_INSTALL_PROFILE"
-    time drush -n si "$DP_INSTALL_PROFILE"
+    time drush -n si "$DP_INSTALL_PROFILE" --account-name=admin --account-pass=admin
   fi
 
   #== Apply the AI recipe.

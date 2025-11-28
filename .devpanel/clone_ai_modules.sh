@@ -56,8 +56,11 @@ clone_module() {
             if git show-ref --verify --quiet refs/remotes/origin/"$module_version"; then
                 git checkout -B "$module_version" origin/"$module_version"
             else
-                echo "  ⚠️  Branch $module_version not found, using default"
-                git checkout $(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
+                echo "  ⚠️  Branch $module_version not found, using latest stable"
+                latest_tag=$(git describe --tags --abbrev=0 $(git rev-list --tags --max-count=1) 2>/dev/null || true)
+                if [ -n "$latest_tag" ]; then
+                    git checkout tags/"$latest_tag"
+                fi
             fi
         else
             # Try as tag, then branch
@@ -66,9 +69,22 @@ clone_module() {
             elif git show-ref --verify --quiet refs/remotes/origin/"$module_version"; then
                 git checkout -B "$module_version" origin/"$module_version"
             else
-                echo "  ⚠️  Version $module_version not found, using default"
-                git checkout $(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
+                echo "  ⚠️  Version $module_version not found, using latest stable"
+                latest_tag=$(git describe --tags --abbrev=0 $(git rev-list --tags --max-count=1) 2>/dev/null || true)
+                if [ -n "$latest_tag" ]; then
+                    git checkout tags/"$latest_tag"
+                fi
             fi
+        fi
+    else
+        # No version specified - checkout latest stable tag
+        echo "  → No version specified, checking out latest stable release"
+        latest_tag=$(git describe --tags --abbrev=0 $(git rev-list --tags --max-count=1) 2>/dev/null || true)
+        if [ -n "$latest_tag" ]; then
+            echo "  → Found latest stable: $latest_tag"
+            git checkout tags/"$latest_tag"
+        else
+            echo "  ⚠️  No tags found, using default branch"
         fi
     fi
 
@@ -139,6 +155,13 @@ get_compatible_version() {
 is_compatible_with_ai() {
     local module_path=$1
     local ai_version=$2
+
+    # If AI version is empty (using git default branch), we can't check compatibility
+    # Assume compatible - the actual version will be determined by git
+    if [ -z "$ai_version" ]; then
+        return 0  # Can't check compatibility without knowing AI version
+    fi
+
     local composer_json="${module_path}/composer.json"
 
     if [ ! -f "$composer_json" ]; then
@@ -171,15 +194,16 @@ is_compatible_with_ai() {
 }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Main Logic: Hybrid Architecture
+# Main Logic: Hybrid Architecture (Dependency-Driven)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 1. If DP_TEST_MODULE set: Clone test module first, use its AI requirement
-# 2. Otherwise: Use auto-detected AI version from compatibility matrix
-# 3. Clone additional modules from DP_AI_MODULES with compatibility filtering
+# 1. If DP_TEST_MODULE set: Clone test module first, read AI requirement from composer.json
+# 2. If DP_AI_MODULE_VERSION set: Use that specific version (dev branch or tag)
+# 3. Otherwise: Use latest stable tag (e.g., 1.2.1, not 1.2.x-dev)
+# 4. Clone additional modules from DP_AI_MODULES with compatibility filtering
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Determine final AI version to use
-FINAL_AI_VERSION="$DP_AI_MODULE_VERSION"
+# Determine final AI version to use (empty = latest stable tag)
+FINAL_AI_VERSION="${DP_AI_MODULE_VERSION}"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Step 1: Clone test module first (if specified) to determine AI requirements
@@ -227,10 +251,14 @@ if [ -n "${DP_TEST_MODULE:-}" ]; then
     else
         # Couldn't determine requirement from test module
         if [ "${DP_AI_MODULE_VERSION_EXPLICIT:-no}" = "no" ]; then
-            echo "  ⚠️  Could not determine AI version from test module"
-            echo "  → Using compatibility matrix default: $FINAL_AI_VERSION"
+            echo "  ⚠️  Could not determine AI version from test module's composer.json"
+            if [ -z "$FINAL_AI_VERSION" ]; then
+                echo "  → Using git repo's default branch (future-proof)"
+            else
+                echo "  → Using default: $FINAL_AI_VERSION"
+            fi
         else
-            echo "  ⚠️  Could not determine AI version from test module"
+            echo "  ⚠️  Could not determine AI version from test module's composer.json"
             echo "  → Using your configured version: $FINAL_AI_VERSION"
         fi
     fi
@@ -246,7 +274,11 @@ else
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "Step 1: No Test Module"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  → Using AI version from compatibility matrix: $FINAL_AI_VERSION"
+    if [ -z "$FINAL_AI_VERSION" ]; then
+        echo "  → Will use latest stable release tag"
+    else
+        echo "  → Using explicitly configured AI version: $FINAL_AI_VERSION"
+    fi
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -254,10 +286,52 @@ fi
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Step 2: Clone AI Base Module @ $FINAL_AI_VERSION"
+if [ -z "$FINAL_AI_VERSION" ]; then
+    echo "Step 2: Clone AI Base Module @ latest stable"
+else
+    echo "Step 2: Clone AI Base Module @ $FINAL_AI_VERSION"
+fi
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 clone_module "$DP_AI_MODULE" "$FINAL_AI_VERSION" "$DP_AI_ISSUE_FORK" "$DP_AI_ISSUE_BRANCH"
+
+# If AI version was empty (latest stable tag), detect the actual version for compatibility filtering
+if [ -z "$FINAL_AI_VERSION" ]; then
+    cd "${APP_ROOT}"/repos/"$DP_AI_MODULE"
+
+    # Try multiple methods to detect version
+    # Method 1: Current branch name (works if checked out to a branch)
+    actual_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+
+    if [[ "$actual_branch" =~ ^[0-9]+\.[0-9x]+$ ]] || [[ "$actual_branch" =~ ^[0-9]+\.x$ ]]; then
+        FINAL_AI_VERSION="$actual_branch"
+        echo "  → Detected AI version from branch: $FINAL_AI_VERSION"
+    else
+        # Method 2: Check which remote branch this commit belongs to (handles detached HEAD)
+        remote_branch=$(git branch -r --contains HEAD 2>/dev/null | grep -E 'origin/[0-9]+\.(x|[0-9]+\.x)$' | head -1 | xargs | sed 's|.*origin/||' || true)
+
+        if [ -n "$remote_branch" ] && [[ "$remote_branch" =~ ^[0-9]+\.[0-9x]+$ ]]; then
+            FINAL_AI_VERSION="$remote_branch"
+            echo "  → Detected AI version from remote branch: $FINAL_AI_VERSION"
+        else
+            # Method 3: Try git describe to find nearest tag
+            nearest_tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+            if [ -n "$nearest_tag" ]; then
+                # Convert tag to branch format (e.g., 1.2.0 → 1.2.x, 2.0.0-alpha1 → 2.0.x)
+                FINAL_AI_VERSION=$(echo "$nearest_tag" | sed -E 's/^([0-9]+\.[0-9]+).*/\1.x/')
+                echo "  → Detected AI version from tag: $FINAL_AI_VERSION (from $nearest_tag)"
+            fi
+        fi
+    fi
+
+    cd "${APP_ROOT}"
+
+    if [ -n "$FINAL_AI_VERSION" ]; then
+        echo "  ✓ Using detected version for compatibility filtering: $FINAL_AI_VERSION"
+    else
+        echo "  ⚠️  Could not detect AI version - skipping compatibility filtering"
+    fi
+fi
 
 # AI base is always compatible
 if [ -z "$COMPATIBLE_AI_MODULES" ]; then
