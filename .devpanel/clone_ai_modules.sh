@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
-cd "${APP_ROOT}"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Directory Setup (works in both DDEV and GitHub Actions environments)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Find the .devpanel directory (where this script lives)
+DEVPANEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Project root is one level up from .devpanel
+PROJECT_ROOT="$(dirname "$DEVPANEL_DIR")"
+
+cd "$PROJECT_ROOT"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Clone AI Modules from Git (Dependency-Driven Architecture)
@@ -57,7 +66,7 @@ clone_module() {
                 git checkout -B "$module_version" origin/"$module_version"
             else
                 echo "  ⚠️  Branch $module_version not found, using latest stable"
-                latest_tag=$(git describe --tags --abbrev=0 $(git rev-list --tags --max-count=1) 2>/dev/null || true)
+                latest_tag=$(git tag --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
                 if [ -n "$latest_tag" ]; then
                     git checkout tags/"$latest_tag"
                 fi
@@ -70,16 +79,17 @@ clone_module() {
                 git checkout -B "$module_version" origin/"$module_version"
             else
                 echo "  ⚠️  Version $module_version not found, using latest stable"
-                latest_tag=$(git describe --tags --abbrev=0 $(git rev-list --tags --max-count=1) 2>/dev/null || true)
+                latest_tag=$(git tag --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
                 if [ -n "$latest_tag" ]; then
                     git checkout tags/"$latest_tag"
                 fi
             fi
         fi
     else
-        # No version specified - checkout latest stable tag
+        # No version specified - checkout latest stable tag (by semantic version, not date)
         echo "  → No version specified, checking out latest stable release"
-        latest_tag=$(git describe --tags --abbrev=0 $(git rev-list --tags --max-count=1) 2>/dev/null || true)
+        # Sort tags by semantic version (descending) and pick the highest
+        latest_tag=$(git tag --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
         if [ -n "$latest_tag" ]; then
             echo "  → Found latest stable: $latest_tag"
             git checkout tags/"$latest_tag"

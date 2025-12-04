@@ -15,11 +15,24 @@
 # For GNU Affero General Public License see <https://www.gnu.org/licenses/>.
 # ----------------------------------------------------------------------
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Directory Setup (works in both DDEV and GitHub Actions environments)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Find the .devpanel directory (where this script lives)
+DEVPANEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Project root is one level up from .devpanel
+PROJECT_ROOT="$(dirname "$DEVPANEL_DIR")"
+# APP_ROOT is the composer root (from environment or default to PROJECT_ROOT)
+APP_ROOT="${APP_ROOT:-$PROJECT_ROOT}"
+
+# Define drush command
+DRUSH="$APP_ROOT/vendor/bin/drush"
+
 #== Import database
 if [[ $(mysql -h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PASSWORD $DB_NAME -e "show tables;") == '' ]]; then
   if [[ -f "$APP_ROOT/.devpanel/dumps/db.sql.gz" ]]; then
     echo  'Import mysql file ...'
-    drush sqlq --file="$APP_ROOT/.devpanel/dumps/db.sql.gz" --file-delete
+    $DRUSH sqlq --file="$APP_ROOT/.devpanel/dumps/db.sql.gz" --file-delete
   fi
 fi
 
@@ -31,11 +44,7 @@ if [[ -n "$DB_SYNC_VOL" ]]; then
   fi
 fi
 
-drush -n updb
+$DRUSH -n updb
 echo
 echo 'Run cron.'
-drush cron
-echo
-echo 'Populate caches.'
-drush cache:warm
-$APP_ROOT/.devpanel/warm
+$DRUSH cron

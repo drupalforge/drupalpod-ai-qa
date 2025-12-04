@@ -1,6 +1,7 @@
 type: drupal11
-docroot: web
+docroot: docroot/web
 php_version: "8.3"
+composer_root: docroot
 webserver_type: apache-fpm
 xdebug_enabled: false
 additional_hostnames: []
@@ -13,13 +14,13 @@ hooks:
         # Set up debugging.
         - exec: test -f .vscode/launch.json || mkdir -p .vscode && cp .ddev/launch.json .vscode/
         # Run initial setup tasks only when needed (DP_REBUILD=1 or Drupal not installed).
-        - exec: 'if [ "${DP_REBUILD:-0}" = "1" ] || ! drush status --field=bootstrap 2>/dev/null | grep -q "Successful"; then .devpanel/init.sh; fi'
+        - exec: 'if [ "${DP_REBUILD:-0}" = "1" ] || ! drush status --field=bootstrap 2>/dev/null | grep -q "Successful"; then bash "$(pwd)/.devpanel/init.sh"; fi'
 use_dns_when_possible: true
 composer_version: "2"
 web_environment:
     # Set up DevPanel variables. DO NOT CHANGE
     - APP_ROOT=$DDEV_COMPOSER_ROOT
-    - WEB_ROOT=$DDEV_COMPOSER_ROOT/$DDEV_DOCROOT
+    - WEB_ROOT=$DDEV_APPROOT/$DDEV_DOCROOT
     - DB_HOST=db
     - DB_PORT=3306
     - DB_USER=db
@@ -36,8 +37,8 @@ web_environment:
     - # ---------------------------------------------------------------------------
     - # Direct mappings to your DDEV environment variables (keep names identical)
     - # ---------------------------------------------------------------------------
-    - DP_STARTER_TEMPLATE=cms       # Starter template (e.g., core, demo, etc.)
-    - DP_VERSION=2.0.x              # Drupal version
+    - DP_STARTER_TEMPLATE=core       # Starter template (e.g., core, demo, etc.)
+    - DP_VERSION=11.x           # Drupal version
 
     - # ---------------------------------------------------------------------------
     - # AI module / PR testing defaults

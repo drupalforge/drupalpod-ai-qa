@@ -5,9 +5,16 @@ on:
       drupal_core_version:
         required: false
         type: string
+        description: 'Drupal version to install (e.g., 1.x, 11.x, 11.2.5)'
       webserver_image:
         required: true
         type: string
+        description: 'Base PHP image (e.g., devpanel/php:8.3-base-ai)'
+      image_tag_suffix:
+        required: false
+        type: string
+        default: ''
+        description: 'Tag suffix (cms or core) - auto-detects starter template'
     secrets:
       DOCKERHUB_TOKEN:
         required: true
@@ -34,6 +41,7 @@ jobs:
           DB_PASSWORD: password
           DB_DRIVER: mysql
           DP_VERSION: ${{ inputs.drupal_core_version || '' }}
+          DP_IMAGE: drupalforge/drupalpod-ai-qa:${{ inputs.image_tag_suffix || 'latest' }}
         ports:
           - 80:80
         volumes:
@@ -86,20 +94,36 @@ jobs:
     - name: Set env to PHP 8.2 environment
       if: endsWith(inputs.webserver_image, ':8.2-base-ai')
       run: |
-        echo "IMAGE_TAG=drupalforge/drupalpod:php-8.2" >> $GITHUB_ENV
+        SUFFIX="${{ inputs.image_tag_suffix }}"
+        if [ -n "$SUFFIX" ]; then
+          echo "IMAGE_TAG=drupalforge/drupalpod-ai-qa:php-8.2-${SUFFIX}" >> $GITHUB_ENV
+        else
+          echo "IMAGE_TAG=drupalforge/drupalpod-ai-qa:php-8.2" >> $GITHUB_ENV
+        fi
 
     - name: Set env to PHP 8.3 environment
       if: endsWith(inputs.webserver_image, ':8.3-base-ai')
       run: |
-        echo "IMAGE_TAG=drupalforge/drupalpod:php-8.3" >> $GITHUB_ENV
+        SUFFIX="${{ inputs.image_tag_suffix }}"
+        if [ -n "$SUFFIX" ]; then
+          echo "IMAGE_TAG=drupalforge/drupalpod-ai-qa:php-8.3-${SUFFIX}" >> $GITHUB_ENV
+        else
+          echo "IMAGE_TAG=drupalforge/drupalpod-ai-qa:php-8.3" >> $GITHUB_ENV
+        fi
 
     - name: Commit and push the container state to Docker Hub
       run: |
         docker commit ${{ job.services.webserver.id }} ${{ env.IMAGE_TAG }}
         docker push ${{ env.IMAGE_TAG }}
 
-    - name: Push to tag latest
-      if: endsWith(inputs.webserver_image, ':8.3-base-ai')
+    - name: Push to tag latest (CMS only)
+      if: endsWith(inputs.webserver_image, ':8.3-base-ai') && inputs.image_tag_suffix == 'cms'
       run: |
-        docker commit ${{ job.services.webserver.id }} drupalforge/drupalpod:latest
-        docker push drupalforge/drupalpod:latest
+        docker commit ${{ job.services.webserver.id }} drupalforge/drupalpod-ai-qa:latest
+        docker push drupalforge/drupalpod-ai-qa:latest
+
+    - name: Push to tag core (Core only)
+      if: endsWith(inputs.webserver_image, ':8.3-base-ai') && inputs.image_tag_suffix == 'core'
+      run: |
+        docker commit ${{ job.services.webserver.id }} drupalforge/drupalpod-ai-qa:core
+        docker push drupalforge/drupalpod-ai-qa:core

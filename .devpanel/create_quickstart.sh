@@ -19,6 +19,20 @@ echo -e "-------------------------------"
 echo -e "| DevPanel Quickstart Creator |"
 echo -e "-------------------------------\n"
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Directory Setup (works in both DDEV and GitHub Actions environments)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Find the .devpanel directory (where this script lives)
+DEVPANEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Project root is one level up from .devpanel
+PROJECT_ROOT="$(dirname "$DEVPANEL_DIR")"
+# APP_ROOT is the composer root (from environment or default to PROJECT_ROOT)
+APP_ROOT="${APP_ROOT:-$PROJECT_ROOT}"
+# WEB_ROOT from environment (with fallback)
+WEB_ROOT="${WEB_ROOT:-$APP_ROOT/web}"
+
+# Define drush command
+DRUSH="$APP_ROOT/vendor/bin/drush"
 
 # Preparing
 WORK_DIR=$APP_ROOT
@@ -32,8 +46,8 @@ mkdir -p $DUMPS_DIR
 cd $WORK_DIR
 echo -e "> Export database to $APP_ROOT/.devpanel/dumps"
 mkdir -p $APP_ROOT/.devpanel/dumps
-drush cr --quiet
-drush sql-dump --result-file=../.devpanel/dumps/db.sql --gzip --extra-dump=--no-tablespaces
+$DRUSH cr --quiet
+$DRUSH sql-dump --result-file=../.devpanel/dumps/db.sql --gzip --extra-dump=--no-tablespaces
 
 # Step 2 - Compress static files
 cd $WORK_DIR

@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
-cd $APP_ROOT
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Directory Setup (works in both DDEV and GitHub Actions environments)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Find the .devpanel directory (where this script lives)
+DEVPANEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Project root is one level up from .devpanel
+PROJECT_ROOT="$(dirname "$DEVPANEL_DIR")"
+# APP_ROOT is the composer root (from environment or default to PROJECT_ROOT)
+APP_ROOT="${APP_ROOT:-$PROJECT_ROOT}"
+
+cd "$APP_ROOT"
 
 # Determine which starter template to use.
 # Options: "cms" or "core"
@@ -43,7 +54,7 @@ fi
 # - This is safer than deleting project root first (preserves files if script fails)
 #
 # Clean up temp directory if it exists from previous runs.
-rm -rf "$APP_ROOT"/temp-composer-files
+rm -rf temp-composer-files
 
 # Create the project template in temp directory.
 if [ -n "$install_version" ]; then
@@ -52,11 +63,11 @@ else
     time composer create-project -n --no-install "$COMPOSER_PROJECT" temp-composer-files
 fi
 
-# Copy all files (including hidden files) from temp to project root.
-cp -r "$APP_ROOT"/temp-composer-files/. "$APP_ROOT"/.
+# Copy all files (including hidden files) from temp to docroot.
+cp -r temp-composer-files/. .
 
 # Clean up temp directory.
-rm -rf "$APP_ROOT"/temp-composer-files
+rm -rf temp-composer-files
 
 # Set minimum-stability to dev to allow alpha/beta packages (needed for dev versions).
 composer config minimum-stability dev
@@ -76,14 +87,9 @@ composer config --no-plugins allow-plugins.php-http/discovery true
 composer config --no-plugins allow-plugins.tbachert/spi false
 
 # Scaffold settings.php.
-composer config -jm extra.drupal-scaffold.file-mapping '{
-    "[web-root]/sites/default/settings.php": {
-        "path": "web/core/assets/scaffold/files/default.settings.php",
-        "overwrite": false
-    }
-}'
+composer config extra.drupal-scaffold.file-mapping '{"[web-root]/sites/default/settings.php":{"path":"web/core/assets/scaffold/files/default.settings.php","overwrite":false}}'
 composer config scripts.post-drupal-scaffold-cmd \
-    'cd web/sites/default && test -z "$(grep '\''include \$devpanel_settings;'\'' settings.php)" && patch -Np1 -r /dev/null < $APP_ROOT/.devpanel/drupal-settings.patch || :'
+    'cd web/sites/default && test -z "$(grep '\''include \$devpanel_settings;'\'' settings.php)" && patch -Np1 -r /dev/null < $DIR/drupal-settings.patch || :'
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # AI MODULES FROM GIT (Path Repositories)
@@ -103,10 +109,10 @@ if [ -n "${COMPATIBLE_AI_MODULES:-}" ]; then
             continue
         fi
 
-        if [ -d "repos/$module" ]; then
+        if [ -d "$APP_ROOT/repos/$module" ]; then
             echo "  - Adding path repository for: $module"
             composer config --no-plugins repositories."$module"-git \
-                "{\"type\": \"path\", \"url\": \"repos/$module\", \"options\": {\"symlink\": true}}"
+                "{\"type\": \"path\", \"url\": \"$APP_ROOT/repos/$module\", \"options\": {\"symlink\": true}}"
 
             # Require from path (use *@dev to accept version from module's composer.json).
             composer require -n --no-update "drupal/$module:*@dev"
@@ -332,7 +338,7 @@ if [ "$STARTER_TEMPLATE" = "cms" ]; then
     }'
 
     # Require all CMS dependencies (Webform libraries only - AI modules come from git).
-    composer require -n --no-update \
+    composer require -n --no-update --dev \
         cweagans/composer-patches:^2@beta \
         drush/drush:^13.6 \
         codemirror/codemirror \

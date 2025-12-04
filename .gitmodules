@@ -18,3 +18,15 @@
 	path = repos/ai_agents
 	url = https://git.drupalcode.org/project/ai_agents.git
 	ignore = dirty
+[submodule "docroot/repos/ai"]
+	path = docroot/repos/ai
+	url = https://git.drupalcode.org/project/ai.git
+[submodule "docroot/repos/ai_provider_litellm"]
+	path = docroot/repos/ai_provider_litellm
+	url = https://git.drupalcode.org/project/ai_provider_litellm.git
+[submodule "docroot/repos/ai_search"]
+	path = docroot/repos/ai_search
+	url = https://git.drupalcode.org/project/ai_search.git
+[submodule "docroot/repos/ai_agents"]
+	path = docroot/repos/ai_agents
+	url = https://git.drupalcode.org/project/ai_agents.git

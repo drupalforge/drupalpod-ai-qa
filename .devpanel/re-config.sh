@@ -15,10 +15,20 @@
 # For GNU Affero General Public License see <https://www.gnu.org/licenses/>.
 # ----------------------------------------------------------------------
 
-#== If webRoot has not been difined, we will set appRoot to webRoot
-if [[ ! -n "$WEB_ROOT" ]]; then
-  export WEB_ROOT=$APP_ROOT
-fi
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Directory Setup (works in both DDEV and GitHub Actions environments)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Find the .devpanel directory (where this script lives)
+DEVPANEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Project root is one level up from .devpanel
+PROJECT_ROOT="$(dirname "$DEVPANEL_DIR")"
+# APP_ROOT is the composer root (from environment or default to PROJECT_ROOT)
+APP_ROOT="${APP_ROOT:-$PROJECT_ROOT}"
+# WEB_ROOT from environment (with fallback)
+WEB_ROOT="${WEB_ROOT:-$APP_ROOT/web}"
+
+# Define drush command
+DRUSH="$APP_ROOT/vendor/bin/drush"
 
 STATIC_FILES_PATH="$WEB_ROOT/sites/default/files/"
 SETTINGS_FILES_PATH="$WEB_ROOT/sites/default/settings.php"
@@ -56,6 +66,6 @@ if [[ $(mysql -h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PASSWORD $DB_NAME -e "show 
   #== Import mysql files
   if [[ -f "$APP_ROOT/.devpanel/dumps/db.sql.gz" ]]; then
     echo  'Import mysql file ...'
-    drush sqlq --file="$APP_ROOT/.devpanel/dumps/db.sql.gz" --file-delete
+    "$DRUSH" sqlq --file="$APP_ROOT/.devpanel/dumps/db.sql.gz" --file-delete
   fi
 fi
