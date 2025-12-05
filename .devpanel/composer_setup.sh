@@ -69,13 +69,8 @@ cp -r temp-composer-files/. .
 # Clean up temp directory.
 rm -rf temp-composer-files
 
-# Set minimum-stability to dev to allow alpha/beta packages (needed for dev versions).
-composer config minimum-stability dev
-
-# Allow patches to fail without stopping installation.
-composer config extra.composer-exit-on-patch-failure false
-
 # Programmatically fix Composer 2.2 allow-plugins to avoid errors.
+# IMPORTANT: Do this FIRST before any other composer config commands to avoid warnings.
 composer config --no-plugins allow-plugins.composer/installers true
 composer config --no-plugins allow-plugins.drupal/core-project-message true
 composer config --no-plugins allow-plugins.drupal/core-vendor-hardening true
@@ -85,9 +80,16 @@ composer config --no-plugins allow-plugins.phpstan/extension-installer true
 composer config --no-plugins allow-plugins.mglaman/composer-drupal-lenient true
 composer config --no-plugins allow-plugins.php-http/discovery true
 composer config --no-plugins allow-plugins.tbachert/spi false
+composer config --no-plugins allow-plugins.cweagans/composer-patches true
+
+# Set minimum-stability to dev to allow alpha/beta packages (needed for dev versions).
+composer config minimum-stability dev
+
+# Allow patches to fail without stopping installation.
+composer config extra.composer-exit-on-patch-failure false
 
 # Scaffold settings.php.
-composer config extra.drupal-scaffold.file-mapping '{"[web-root]/sites/default/settings.php":{"path":"web/core/assets/scaffold/files/default.settings.php","overwrite":false}}'
+composer config --json extra.drupal-scaffold.file-mapping '{"[web-root]/sites/default/settings.php":{"path":"web/core/assets/scaffold/files/default.settings.php","overwrite":false}}'
 composer config scripts.post-drupal-scaffold-cmd \
     'cd web/sites/default && test -z "$(grep '\''include \$devpanel_settings;'\'' settings.php)" && patch -Np1 -r /dev/null < $DIR/drupal-settings.patch || :'
 
@@ -125,9 +127,6 @@ fi
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # AI DEPENDENCIES
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-# Enable Composer Patches plugin (needed for applying patches from drupal.org).
-composer config --no-plugins allow-plugins.cweagans/composer-patches true
 
 if [ "$STARTER_TEMPLATE" = "cms" ]; then
     echo "Adding CMS dependencies (full setup with webform libraries)..."
