@@ -2,7 +2,7 @@ name: Reusable Docker build and push template
 on:
   workflow_call:
     inputs:
-      drupal_core_version:
+      drupal_version:
         required: false
         type: string
         description: 'Drupal version to install (e.g., 1.x, 11.x, 11.2.5)'
@@ -40,7 +40,7 @@ jobs:
           DB_USER: user
           DB_PASSWORD: password
           DB_DRIVER: mysql
-          DP_VERSION: ${{ inputs.drupal_core_version || '' }}
+          DP_VERSION: ${{ inputs.drupal_version || '' }}
           DP_IMAGE: drupalforge/drupalpod-ai-qa:${{ inputs.image_tag_suffix || 'latest' }}
           DP_REBUILD: '1'
         ports:

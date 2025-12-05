@@ -20,11 +20,10 @@ jobs:
 #    secrets: inherit
 
   build-php-8_3-cms:
-    needs: build-php-8_2-core
     uses: ./.github/workflows/docker-publish-image.yml
     with:
       webserver_image: devpanel/php:8.3-base-ai
-      drupal_core_version: '1.2.0'
+      drupal_version: '1.2.0'
       image_tag_suffix: cms
     secrets: inherit
 #
