@@ -1,45 +1,7 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DevPanel/GitHub Actions: Auto-detect starter template from Docker image tag
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# This ensures image tag is authoritative over env vars to prevent conflicts
-# DDEV: DP_IMAGE not set, skips this section and uses defaults below
-if [ -n "${DP_IMAGE:-}" ]; then
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "🐳 DevPanel Mode: Image-based configuration"
-  echo "   Using Docker image: $DP_IMAGE"
-
-  # Extract tag from image (after the colon)
-  IMAGE_TAG="${DP_IMAGE##*:}"
-
-  # Detect starter template from tag
-  if [[ "$IMAGE_TAG" == *"core"* ]]; then
-    DETECTED_TEMPLATE="core"
-  elif [[ "$IMAGE_TAG" == *"cms"* ]]; then
-    DETECTED_TEMPLATE="cms"
-  elif [[ "$IMAGE_TAG" == "latest" ]]; then
-    DETECTED_TEMPLATE="cms"  # latest = cms by convention
-  else
-    DETECTED_TEMPLATE=""  # Unknown tag, use defaults below
-  fi
-
-  # Make image tag authoritative
-  if [ -n "$DETECTED_TEMPLATE" ]; then
-    if [ -n "${DP_STARTER_TEMPLATE:-}" ] && [ "$DP_STARTER_TEMPLATE" != "$DETECTED_TEMPLATE" ]; then
-      echo "   ⚠️  Conflict detected: Image='$DETECTED_TEMPLATE', Env='$DP_STARTER_TEMPLATE'"
-      echo "   ✓ Using image value (image is authoritative)"
-    else
-      echo "   ✓ Detected: $DETECTED_TEMPLATE"
-    fi
-    export DP_STARTER_TEMPLATE="$DETECTED_TEMPLATE"
-  fi
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo
-fi
-
-# Set defaults for DrupalPod AI QA (DDEV and fallback for DevPanel)
+# Set defaults for DrupalPod AI QA (DDEV and Docker builds)
 export DP_STARTER_TEMPLATE=${DP_STARTER_TEMPLATE:='cms'}
 
 # Set default version based on starter template
