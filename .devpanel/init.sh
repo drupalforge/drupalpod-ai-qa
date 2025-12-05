@@ -88,6 +88,36 @@ echo 'All modules installed and ready!'
 [ ! -f "$DIR/salt.txt" ] && { echo; echo 'Generate hash salt.'; time openssl rand -hex 32 > "$DIR/salt.txt"; }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Configure database settings (like 'ddev config --auto' does)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo
+echo "Verifying settings.php configuration..."
+if [ -f "$APP_ROOT/web/sites/default/settings.php" ]; then
+  echo "✓ settings.php exists"
+
+  # Check if devpanel settings include is present
+  if grep -q "settings.devpanel.php" "$APP_ROOT/web/sites/default/settings.php"; then
+    echo "✓ DevPanel settings include found"
+  else
+    echo "✗ DevPanel settings include NOT found - patch may have failed"
+  fi
+
+  # Verify settings.devpanel.php exists
+  if [ -f "$DIR/settings.devpanel.php" ]; then
+    echo "✓ settings.devpanel.php exists"
+  else
+    echo "✗ settings.devpanel.php missing!"
+  fi
+
+  # Test if PHP can read environment variables
+  echo "Testing PHP getenv()..."
+  php -r "echo 'DB_HOST via getenv: ' . getenv('DB_HOST') . PHP_EOL;"
+  php -r "echo 'DP_APP_ID via getenv: ' . getenv('DP_APP_ID') . PHP_EOL;"
+else
+  echo "✗ settings.php not found!"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Install Drupal
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo
@@ -96,12 +126,26 @@ if [ "${DP_REBUILD:-0}" = "1" ] || ! $DRUSH status --field=bootstrap | grep -q "
   echo "DEBUG: DP_INSTALL_PROFILE = '${DP_INSTALL_PROFILE:-}'"
   echo "DEBUG: PROFILE = '$PROFILE'"
 
+  # Debug: Check if DB environment variables are set
+  echo "DEBUG: Checking database environment variables:"
+  echo "  DB_DRIVER=${DB_DRIVER:-NOT SET}"
+  echo "  DB_HOST=${DB_HOST:-NOT SET}"
+  echo "  DB_PORT=${DB_PORT:-NOT SET}"
+  echo "  DB_NAME=${DB_NAME:-NOT SET}"
+  echo "  DB_USER=${DB_USER:-NOT SET}"
+  echo "  DP_APP_ID=${DP_APP_ID:-NOT SET}"
+
+  # Build database URL for drush
+  DB_URL="${DB_DRIVER:-mysql}://${DB_USER:-user}:${DB_PASSWORD:-password}@${DB_HOST:-localhost}:${DB_PORT:-3306}/${DB_NAME:-drupaldb}"
+
   if [ -z "$PROFILE" ]; then
     echo "Installing Drupal CMS (no profile specified - auto-detect)"
-    time $DRUSH -n si
+    echo "Database URL: ${DB_DRIVER}://${DB_USER}:***@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+    time $DRUSH -n si --db-url="$DB_URL" --account-name=admin --account-pass=admin
   else
     echo "Installing Drupal with profile: $PROFILE"
-    time $DRUSH -n si "$PROFILE" --account-name=admin --account-pass=admin
+    echo "Database URL: ${DB_DRIVER}://${DB_USER}:***@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+    time $DRUSH -n si "$PROFILE" --db-url="$DB_URL" --account-name=admin --account-pass=admin
   fi
 
   # AI setup if available
