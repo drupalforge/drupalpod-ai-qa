@@ -26,8 +26,8 @@ jobs:
         image: ${{ inputs.webserver_image }}
         env:
           DP_APP_ID: 'drupalpod'
-          APP_ROOT: '/var/www/html'
-          WEB_ROOT: '/var/www/html/web'
+          APP_ROOT: '/var/www/html/docroot'
+          WEB_ROOT: '/var/www/html/docroot/web'
           CODES_USER_DATA_DIR: '/var/www/html/.vscode'
           CODES_WORKING_DIR: '/var/www/html'
           APACHE_RUN_USER: 'www'
@@ -42,6 +42,7 @@ jobs:
           DB_DRIVER: mysql
           DP_VERSION: ${{ inputs.drupal_core_version || '' }}
           DP_IMAGE: drupalforge/drupalpod-ai-qa:${{ inputs.image_tag_suffix || 'latest' }}
+          DP_REBUILD: '1'
         ports:
           - 80:80
         volumes:
@@ -71,19 +72,21 @@ jobs:
     - name: Setup Drupal
       run: |
         echo "PREPARE DIR FOR INSTALL"
-        docker exec ${{ job.services.webserver.id }} bash -c "sudo rm -rf \$APP_ROOT && sudo mkdir -p \$APP_ROOT"
-        docker exec ${{ job.services.webserver.id }} bash -c "sudo cp -r /app/. \$APP_ROOT/."
-        docker exec ${{ job.services.webserver.id }} bash -c "sudo chown -R www:www \$APP_ROOT"
-        docker exec ${{ job.services.webserver.id }} bash -c "export && cd \$APP_ROOT && ls -al"
+        docker exec ${{ job.services.webserver.id }} bash -c "sudo rm -rf /var/www/html && sudo mkdir -p /var/www/html"
+        docker exec ${{ job.services.webserver.id }} bash -c "sudo cp -r /app/. /var/www/html/."
+        docker exec ${{ job.services.webserver.id }} bash -c "sudo mkdir -p /var/www/html/docroot"
+        docker exec ${{ job.services.webserver.id }} bash -c "sudo chown -R www:www /var/www/html"
+        docker exec ${{ job.services.webserver.id }} bash -c "export && cd /var/www/html && ls -al"
         echo "SET UP GIT"
-        docker exec ${{ job.services.webserver.id }} bash -c "git config --global --add safe.directory \$APP_ROOT"
+        docker exec ${{ job.services.webserver.id }} bash -c "git config --global --add safe.directory /var/www/html"
+        docker exec ${{ job.services.webserver.id }} bash -c "git config --global --add safe.directory /var/www/html/docroot"
         echo "INSTALL CUSTOM PACKAGE"
-        docker exec ${{ job.services.webserver.id }} bash -c "\$APP_ROOT/.devpanel/custom_package_installer.sh"
+        docker exec ${{ job.services.webserver.id }} bash -c "/var/www/html/.devpanel/custom_package_installer.sh"
         echo "INSTALL DRUPAL"
-        docker exec ${{ job.services.webserver.id }} bash -c "cd \$APP_ROOT && ls -al"
-        docker exec ${{ job.services.webserver.id }} bash -c "\$APP_ROOT/.devpanel/init.sh"
+        docker exec ${{ job.services.webserver.id }} bash -c "cd /var/www/html && ls -al"
+        docker exec ${{ job.services.webserver.id }} bash -c "/var/www/html/.devpanel/init.sh"
         echo "DUMPS DATABASE + STATIC FILE"
-        docker exec ${{ job.services.webserver.id }} bash -c "\$APP_ROOT/.devpanel/create_quickstart.sh"
+        docker exec ${{ job.services.webserver.id }} bash -c "/var/www/html/.devpanel/create_quickstart.sh"
 
     - name: Login to Docker Hub
       uses: docker/login-action@v2

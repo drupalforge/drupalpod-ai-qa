@@ -14,30 +14,32 @@ jobs:
     uses: ./.github/workflows/docker-publish-image.yml
     with:
       webserver_image: devpanel/php:8.2-base-ai
-      drupal_core_version: '1.x'
       image_tag_suffix: cms
     secrets: inherit
-
-  build-php-8_2-core:
-    uses: ./.github/workflows/docker-publish-image.yml
-    with:
-      webserver_image: devpanel/php:8.2-base-ai
-      drupal_core_version: '11.x'
-      image_tag_suffix: core
-    secrets: inherit
-
-  build-php-8_3-cms:
-    uses: ./.github/workflows/docker-publish-image.yml
-    with:
-      webserver_image: devpanel/php:8.3-base-ai
-      drupal_core_version: '1.x'
-      image_tag_suffix: cms
-    secrets: inherit
-
-  build-php-8_3-core:
-    uses: ./.github/workflows/docker-publish-image.yml
-    with:
-      webserver_image: devpanel/php:8.3-base-ai
-      drupal_core_version: '11.x'
-      image_tag_suffix: core
-    secrets: inherit
+#
+#  build-php-8_2-core:
+#    needs: build-php-8_2-cms
+#    uses: ./.github/workflows/docker-publish-image.yml
+#    with:
+#      webserver_image: devpanel/php:8.2-base-ai
+#      drupal_core_version: '11.x'
+#      image_tag_suffix: core
+#    secrets: inherit
+#
+#  build-php-8_3-cms:
+#    needs: build-php-8_2-core
+#    uses: ./.github/workflows/docker-publish-image.yml
+#    with:
+#      webserver_image: devpanel/php:8.3-base-ai
+#      drupal_core_version: '1.2.0'
+#      image_tag_suffix: cms
+#    secrets: inherit
+#
+#  build-php-8_3-core:
+#    needs: build-php-8_3-cms
+#    uses: ./.github/workflows/docker-publish-image.yml
+#    with:
+#      webserver_image: devpanel/php:8.3-base-ai
+#      drupal_core_version: '11.x'
+#      image_tag_suffix: core
+#    secrets: inherit
