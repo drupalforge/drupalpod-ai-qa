@@ -93,6 +93,8 @@ echo 'All modules installed and ready!'
 echo
 if [ "${DP_REBUILD:-0}" = "1" ] || ! $DRUSH status --field=bootstrap | grep -q "Drupal bootstrap"; then
   PROFILE="${DP_INSTALL_PROFILE:-standard}"
+  echo "DEBUG: DP_INSTALL_PROFILE = '${DP_INSTALL_PROFILE:-}'"
+  echo "DEBUG: PROFILE = '$PROFILE'"
   echo "Installing Drupal with profile: $PROFILE"
   time $DRUSH -n si "$PROFILE" --account-name=admin --account-pass=admin
 

@@ -4,6 +4,8 @@ set -eu -o pipefail
 # Set defaults for DrupalPod AI QA (DDEV and Docker builds)
 export DP_STARTER_TEMPLATE=${DP_STARTER_TEMPLATE:='cms'}
 
+echo "DEBUG: DP_STARTER_TEMPLATE = '$DP_STARTER_TEMPLATE'"
+
 # Set default version based on starter template
 if [ "$DP_STARTER_TEMPLATE" = "cms" ]; then
   # CMS versions: 1.0.0, 1.1.x, 2.0.0, etc.
@@ -18,15 +20,19 @@ export DP_EXTRA_DEVEL=1
 export DP_EXTRA_ADMIN_TOOLBAR=1
 
 # Default install profile (can be overridden)
+echo "DEBUG: Before setting DP_INSTALL_PROFILE = '${DP_INSTALL_PROFILE:-}'"
 if [ -z "${DP_INSTALL_PROFILE:-}" ]; then
   if [ "$DP_STARTER_TEMPLATE" = "cms" ]; then
     # For CMS, empty string means auto-detect drupal_cms_installer
     export DP_INSTALL_PROFILE=''
+    echo "DEBUG: Set DP_INSTALL_PROFILE to EMPTY for CMS"
   else
     # For core, use standard profile by default
     export DP_INSTALL_PROFILE='standard'
+    echo "DEBUG: Set DP_INSTALL_PROFILE to 'standard' for core"
   fi
 fi
+echo "DEBUG: After setting DP_INSTALL_PROFILE = '${DP_INSTALL_PROFILE:-}'"
 
 # Validate version format matches template choice
 if [ "$DP_STARTER_TEMPLATE" = "cms" ]; then
