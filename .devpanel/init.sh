@@ -95,8 +95,15 @@ if [ "${DP_REBUILD:-0}" = "1" ] || ! $DRUSH status --field=bootstrap | grep -q "
   PROFILE="${DP_INSTALL_PROFILE-standard}"
   echo "DEBUG: DP_INSTALL_PROFILE = '${DP_INSTALL_PROFILE:-}'"
   echo "DEBUG: PROFILE = '$PROFILE'"
-  echo "Installing Drupal with profile: $PROFILE"
-  time $DRUSH -n si "$PROFILE" --account-name=admin --account-pass=admin
+
+  # For Drupal CMS (empty profile), use site:install without profile argument
+  if [ -z "$PROFILE" ]; then
+    echo "Installing Drupal CMS (auto-detect from RecipeKit)"
+    time $DRUSH -n site:install --account-name=admin --account-pass=admin
+  else
+    echo "Installing Drupal with profile: $PROFILE"
+    time $DRUSH -n si "$PROFILE" --account-name=admin --account-pass=admin
+  fi
 
   # AI setup if available
   if [ -n "${DP_AI_VIRTUAL_KEY:-}" ]; then
