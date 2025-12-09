@@ -10,10 +10,12 @@ set -eu -o pipefail
 # Directory Setup (works in both DDEV and GitHub Actions environments)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$DIR")"
 
 # APP_ROOT is set by environment (DDEV or GitHub Actions)
 # It should point to the composer root (docroot/)
-cd "$APP_ROOT"
+# Start in PROJECT_ROOT so we can remove docroot if needed
+cd "$PROJECT_ROOT"
 mkdir -p logs
 LOG_FILE="logs/init-$(date +%F-%T).log"
 exec > >(tee "$LOG_FILE") 2>&1
@@ -50,6 +52,10 @@ if [ "${DP_REBUILD:-0}" = "1" ]; then
   echo 'Rebuild mode enabled.'
   echo
 fi
+
+# Ensure APP_ROOT exists and cd into it
+mkdir -p "$APP_ROOT"
+cd "$APP_ROOT"
 
 # Remove root-owned artifacts
 echo
