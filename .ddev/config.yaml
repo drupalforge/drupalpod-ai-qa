@@ -37,8 +37,8 @@ web_environment:
     - # ---------------------------------------------------------------------------
     - # Direct mappings to your DDEV environment variables (keep names identical)
     - # ---------------------------------------------------------------------------
-    - DP_STARTER_TEMPLATE=core       # Starter template (e.g., core, demo, etc.)
-    - DP_VERSION=11.x           # Drupal version
+    - DP_STARTER_TEMPLATE=cms        # Starter template (core or cms)
+    - DP_VERSION=1.2.0               # Drupal version [CMS: 1.2.0, Core: 11.x]
 
     - # ---------------------------------------------------------------------------
     - # AI module / PR testing defaults
@@ -54,13 +54,13 @@ web_environment:
 
     - # ---------------------------------------------------------------------------
     - # Test any AI sub-module (ai_search, ai_agents, providers, etc.)
-    - # - Setting DP_TEST_MODULE will auto-detect required AI version!
+    - # - Setting DP_TEST_MODULE will auto-detect required base AI version if not defined
     - # - The script clones test module first, reads its AI requirement, then clones AI
     - # - Use DP_TEST_MODULE_VERSION to pin a release-style version (optional)
     - # - Use DP_TEST_MODULE_ISSUE_FORK / DP_TEST_MODULE_ISSUE_BRANCH to test PRs
     - # ---------------------------------------------------------------------------
-    - DP_TEST_MODULE=                # Empty = use auto-detected AI version
-    - DP_TEST_MODULE_VERSION=        # Empty = use dev branch
+    - DP_TEST_MODULE=                     # Empty = use auto-detected AI version
+    - DP_TEST_MODULE_VERSION=             # Empty = use dev branch
     - DP_TEST_MODULE_ISSUE_FORK=
     - DP_TEST_MODULE_ISSUE_BRANCH=
 
@@ -70,7 +70,8 @@ web_environment:
     - DP_AI_VIRTUAL_KEY=
 
     - # ---------------------------------------------------------------------------
-    - # Set to 1 if you wish to rebuild the whole project from scratch
+    - # Set to 1 if you wish to rebuild the whole project from scratch. This is
+    - # mainly beneficial for only ddev so you can skip rebuilding when not needed.
     - # ---------------------------------------------------------------------------
     - DP_REBUILD=1
 corepack_enable: false

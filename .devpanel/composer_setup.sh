@@ -4,12 +4,10 @@ set -eu -o pipefail
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Directory Setup (works in both DDEV and GitHub Actions environments)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Find the .devpanel directory (where this script lives)
+# APP_ROOT is set by environment (DDEV or GitHub Actions) to the composer root
+# PROJECT_ROOT is the parent directory (where repos/ lives)
 DEVPANEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Project root is one level up from .devpanel
 PROJECT_ROOT="$(dirname "$DEVPANEL_DIR")"
-# APP_ROOT is the composer root (from environment or default to PROJECT_ROOT)
-APP_ROOT="${APP_ROOT:-$PROJECT_ROOT}"
 
 cd "$APP_ROOT"
 
@@ -111,10 +109,10 @@ if [ -n "${COMPATIBLE_AI_MODULES:-}" ]; then
             continue
         fi
 
-        if [ -d "$APP_ROOT/repos/$module" ]; then
+        if [ -d "$PROJECT_ROOT/repos/$module" ]; then
             echo "  - Adding path repository for: $module"
             composer config --no-plugins repositories."$module"-git \
-                "{\"type\": \"path\", \"url\": \"$APP_ROOT/repos/$module\", \"options\": {\"symlink\": true}}"
+                "{\"type\": \"path\", \"url\": \"$PROJECT_ROOT/repos/$module\", \"options\": {\"symlink\": true}}"
 
             # Require from path (use *@dev to accept version from module's composer.json).
             composer require -n --no-update "drupal/$module:*@dev"

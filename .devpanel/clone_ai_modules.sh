@@ -44,7 +44,7 @@ clone_module() {
         time git config -f .gitmodules submodule."repos/$module_name".ignore dirty
     fi
 
-    cd "${APP_ROOT}"/repos/"$module_name"
+    cd "$PROJECT_ROOT/repos/$module_name"
     git fetch origin
     git fetch --all --tags
 
@@ -98,7 +98,7 @@ clone_module() {
         fi
     fi
 
-    cd "${APP_ROOT}"
+    cd "$PROJECT_ROOT"
 
     # Add to cloned modules list
     if [ -z "$CLONED_AI_MODULES" ]; then
@@ -307,7 +307,7 @@ clone_module "$DP_AI_MODULE" "$FINAL_AI_VERSION" "$DP_AI_ISSUE_FORK" "$DP_AI_ISS
 
 # If AI version was empty (latest stable tag), detect the actual version for compatibility filtering
 if [ -z "$FINAL_AI_VERSION" ]; then
-    cd "${APP_ROOT}"/repos/"$DP_AI_MODULE"
+    cd "$PROJECT_ROOT/repos/$DP_AI_MODULE"
 
     # Try multiple methods to detect version
     # Method 1: Current branch name (works if checked out to a branch)
@@ -334,7 +334,7 @@ if [ -z "$FINAL_AI_VERSION" ]; then
         fi
     fi
 
-    cd "${APP_ROOT}"
+    cd "$PROJECT_ROOT"
 
     if [ -n "$FINAL_AI_VERSION" ]; then
         echo "  ✓ Using detected version for compatibility filtering: $FINAL_AI_VERSION"

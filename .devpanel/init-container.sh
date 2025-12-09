@@ -18,14 +18,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Directory Setup (works in both DDEV and GitHub Actions environments)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Find the .devpanel directory (where this script lives)
-DEVPANEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Project root is one level up from .devpanel
-PROJECT_ROOT="$(dirname "$DEVPANEL_DIR")"
-# APP_ROOT is the composer root (from environment or default to PROJECT_ROOT)
-APP_ROOT="${APP_ROOT:-$PROJECT_ROOT}"
-
-# Define drush command
+# APP_ROOT is set by environment (DDEV or GitHub Actions) to the composer root
 DRUSH="$APP_ROOT/vendor/bin/drush"
 
 #== Import database

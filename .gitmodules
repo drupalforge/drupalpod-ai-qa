@@ -30,3 +30,7 @@
 [submodule "docroot/repos/ai_agents"]
 	path = docroot/repos/ai_agents
 	url = https://git.drupalcode.org/project/ai_agents.git
+[submodule "repos/ai_seo"]
+	path = repos/ai_seo
+	url = https://git.drupalcode.org/project/ai_seo.git
+	ignore = dirty

@@ -9,11 +9,10 @@ set -eu -o pipefail
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Directory Setup (works in both DDEV and GitHub Actions environments)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DEVPANEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$DEVPANEL_DIR")"
-APP_ROOT="${APP_ROOT:-$PROJECT_ROOT}"
-DIR="$DEVPANEL_DIR"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# APP_ROOT is set by environment (DDEV or GitHub Actions)
+# It should point to the composer root (docroot/)
 cd "$APP_ROOT"
 mkdir -p logs
 LOG_FILE="logs/init-$(date +%F-%T).log"
@@ -23,7 +22,7 @@ TIMEFORMAT=%lR
 export COMPOSER_NO_AUDIT=1
 export COMPOSER_NO_DEV=1
 
-# Drush path (after composer install)
+# Drush path (created after composer install)
 DRUSH="$APP_ROOT/vendor/bin/drush"
 
 # Source fallback setup
@@ -47,7 +46,7 @@ if [ "${DP_REBUILD:-0}" = "1" ]; then
   echo
   echo 'Performing clean rebuild...'
   echo 'Removing docroot directory...'
-  time rm -rf docroot
+  time rm -rf docroot || echo "Note: Some files couldn't be removed (Mutagen sync active)"
   echo 'Rebuild mode enabled.'
   echo
 fi

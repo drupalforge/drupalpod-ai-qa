@@ -18,18 +18,8 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Directory Setup (works in both DDEV and GitHub Actions environments)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Find the .devpanel directory (where this script lives)
-DEVPANEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Project root is one level up from .devpanel
-PROJECT_ROOT="$(dirname "$DEVPANEL_DIR")"
-# APP_ROOT is the composer root (from environment or default to PROJECT_ROOT)
-APP_ROOT="${APP_ROOT:-$PROJECT_ROOT}"
-# WEB_ROOT from environment (with fallback)
-WEB_ROOT="${WEB_ROOT:-$APP_ROOT/web}"
-
-# Define drush command
+# APP_ROOT and WEB_ROOT are set by environment (DDEV or GitHub Actions)
 DRUSH="$APP_ROOT/vendor/bin/drush"
-
 STATIC_FILES_PATH="$WEB_ROOT/sites/default/files/"
 SETTINGS_FILES_PATH="$WEB_ROOT/sites/default/settings.php"
 
