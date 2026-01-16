@@ -18,11 +18,11 @@ jobs:
       webserver_image: devpanel/php:8.3-base-ai
       image_tag_suffix: cms
     secrets: inherit
-
-  build-php-8_3-core:
-    needs: build-php-8_3-cms
-    uses: ./.github/workflows/docker-publish-image.yml
-    with:
-      webserver_image: devpanel/php:8.3-base-ai
-      image_tag_suffix: core
-    secrets: inherit
+#
+#  build-php-8_3-core:
+#    needs: build-php-8_3-cms
+#    uses: ./.github/workflows/docker-publish-image.yml
+#    with:
+#      webserver_image: devpanel/php:8.3-base-ai
+#      image_tag_suffix: core
+#    secrets: inherit
