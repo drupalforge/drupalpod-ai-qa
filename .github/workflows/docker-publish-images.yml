@@ -1,5 +1,4 @@
-# Jobs require one another to prevent time-outs.
-name: Docker build and push template
+qname: Docker build and push template
 on:
   push:
     branches:
@@ -11,13 +10,20 @@ concurrency:
 permissions:
   actions: write
 jobs:
+  build-php-8_2-core:
+    uses: ./.github/workflows/docker-publish-image.yml
+    with:
+      webserver_image: devpanel/php:8.2-base-ai
+      drupal_version: '10.x'
+      image_tag_suffix: core
+    secrets: inherit
 
-#  build-php-8_3-cms:
-#    uses: ./.github/workflows/docker-publish-image.yml
-#    with:
-#      webserver_image: devpanel/php:8.3-base-ai
-#      image_tag_suffix: cms
-#    secrets: inherit
+  build-php-8_3-cms:
+    uses: ./.github/workflows/docker-publish-image.yml
+    with:
+      webserver_image: devpanel/php:8.3-base-ai
+      image_tag_suffix: cms
+    secrets: inherit
 
   build-php-8_3-core:
     uses: ./.github/workflows/docker-publish-image.yml
