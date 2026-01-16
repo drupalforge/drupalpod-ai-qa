@@ -1,4 +1,4 @@
-qname: Docker build and push template
+name: Docker build and push template
 on:
   push:
     branches:
