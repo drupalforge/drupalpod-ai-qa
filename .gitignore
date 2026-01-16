@@ -1,10 +1,6 @@
 # Drupal installation (everything Drupal-related is in docroot/)
 /docroot
 
-# Git submodules (dynamically generated - don't commit)
-/.gitmodules
-/repos
-
 # Dependencies managed by Composer (legacy - now in docroot/).
 /recipes
 /vendor
