@@ -18,28 +18,36 @@ STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-cms}"
 # Determine the composer package and version.
 if [ "$STARTER_TEMPLATE" = "cms" ]; then
     COMPOSER_PROJECT="drupal/cms"
-    # For CMS versions: 1.x, 1.0.0, 2.0.0, etc.
+    # For CMS versions: 1.x, 1.0.0, 2.0.0, etc. (empty = latest stable)
     d="$DP_VERSION"
-    case $d in
-    *.x)
-        install_version="$d"-dev
-        ;;
-    *)
-        install_version="$d"
-        ;;
-    esac
+    if [ -z "$d" ]; then
+        install_version=""
+    else
+        case $d in
+        *.x)
+            install_version="$d"-dev
+            ;;
+        *)
+            install_version="$d"
+            ;;
+        esac
+    fi
 else
     COMPOSER_PROJECT="drupal/recommended-project"
-    # For core versions: 11.x, 11.2.8, etc.
+    # For core versions: 11.x, 11.2.8, etc. (empty = latest stable)
     d="$DP_VERSION"
-    case $d in
-    *.x)
-        install_version="$d"-dev
-        ;;
-    *)
-        install_version=~"$d"
-        ;;
-    esac
+    if [ -z "$d" ]; then
+        install_version=""
+    else
+        case $d in
+        *.x)
+            install_version="$d"-dev
+            ;;
+        *)
+            install_version=~"$d"
+            ;;
+        esac
+    fi
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -42,7 +42,7 @@ jobs:
           DB_DRIVER: mysql
           DP_VERSION: ${{ inputs.drupal_version || '' }}
           DP_IMAGE: drupalforge/drupalpod-ai-qa:${{ inputs.image_tag_suffix || 'latest' }}
-          DP_STARTER_TEMPLATE: 'cms'
+          DP_STARTER_TEMPLATE: ${{ inputs.image_tag_suffix || 'cms' }}
           DP_REBUILD: '1'
         ports:
           - 80:80

@@ -2,67 +2,58 @@
 set -eu -o pipefail
 
 # Set defaults for DrupalPod AI QA (DDEV and Docker builds)
-export DP_STARTER_TEMPLATE=${DP_STARTER_TEMPLATE:='cms'}
-
-echo "DEBUG: DP_STARTER_TEMPLATE = '$DP_STARTER_TEMPLATE'"
-
-# Set default version based on starter template
-if [ "$DP_STARTER_TEMPLATE" = "cms" ]; then
-  # CMS versions: 1.0.0, 1.1.x, 2.0.0, etc.
-  export DP_VERSION=${DP_VERSION:='1.x'}
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Drupal Starter Template Selection"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [ -z "${DP_STARTER_TEMPLATE:-}" ]; then
+  export DP_STARTER_TEMPLATE='cms'
+  echo "  → No template specified, using default: cms"
+  echo "  📦 Template: $DP_STARTER_TEMPLATE (auto-detected)"
 else
-  # Core versions: 11.2.8, 11.x, 10.1.5, etc.
-  export DP_VERSION=${DP_VERSION:='11.2.8'}
+  echo "  → Template explicitly set: $DP_STARTER_TEMPLATE"
+  echo "  📦 Template: $DP_STARTER_TEMPLATE (explicit)"
 fi
+echo ""
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Drupal Version Selection"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+# Set default version based on starter template (empty = latest stable)
+export DP_VERSION=${DP_VERSION:=''}
+if [ -n "$DP_VERSION" ]; then
+  echo "  → Version explicitly set: $DP_VERSION"
+  echo "  📦 Version: $DP_VERSION (explicit)"
+else
+  echo "  → No version specified, using latest stable"
+  echo "  📦 Version: latest stable (auto-detected)"
+fi
+echo ""
 
 # Optional: Enable extra modules (disabled for Drupal 11)
 export DP_EXTRA_DEVEL=1
 export DP_EXTRA_ADMIN_TOOLBAR=1
 
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Drupal Install Profile Selection"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 # Default install profile (can be overridden)
-echo "DEBUG: Before setting DP_INSTALL_PROFILE = '${DP_INSTALL_PROFILE:-}'"
 if [ -z "${DP_INSTALL_PROFILE:-}" ]; then
   if [ "$DP_STARTER_TEMPLATE" = "cms" ]; then
     # For CMS, empty string means auto-detect drupal_cms_installer
     export DP_INSTALL_PROFILE=''
-    echo "DEBUG: Set DP_INSTALL_PROFILE to EMPTY for CMS"
+    echo "  → Template is CMS, using auto-detect"
+    echo "  📦 Profile: auto-detect (empty for CMS installer)"
   else
     # For core, use standard profile by default
     export DP_INSTALL_PROFILE='standard'
-    echo "DEBUG: Set DP_INSTALL_PROFILE to 'standard' for core"
-  fi
-fi
-echo "DEBUG: After setting DP_INSTALL_PROFILE = '${DP_INSTALL_PROFILE:-}'"
-
-# Validate version format matches template choice
-if [ "$DP_STARTER_TEMPLATE" = "cms" ]; then
-  # CMS versions should be like 1.x, 2.x, 1.0.0, 2.0.0, not like 9.x or higher (which are core)
-  if [[ "$DP_VERSION" =~ ^[0-9]+ ]]; then
-    major_version=$(echo "$DP_VERSION" | cut -d. -f1)
-    if [ "$major_version" -ge 9 ]; then
-      echo "ERROR: Version '$DP_VERSION' looks like a Drupal core version, but you selected CMS template."
-      echo "CMS versions should be like: 1.0.0, 1.1.x, 1.x-dev, 2.0.0, 2.x, etc."
-      exit 1
-    fi
+    echo "  → Template is core, using standard profile"
+    echo "  📦 Profile: standard (default for core)"
   fi
 else
-  # Core versions should be like 9.x, 10.x, 11.2.8, not like 1.0.0 or 2.0.0
-  if [[ "$DP_VERSION" =~ ^[1-2]\. ]]; then
-    echo "ERROR: Version '$DP_VERSION' looks like a CMS version, but you selected core template."
-    echo "Core versions should be like: 11.2.8, 11.x, 10.1.5, 10.x, 9.x"
-    exit 1
-  fi
+  echo "  → Profile explicitly set: ${DP_INSTALL_PROFILE}"
+  echo "  📦 Profile: ${DP_INSTALL_PROFILE} (explicit)"
 fi
-
-# Set install profile based on starter template (only if not already set)
-# For CMS, don't specify a profile - let Drupal auto-detect the distribution
-if [ -z "${DP_INSTALL_PROFILE+x}" ]; then
-  if [ "$DP_STARTER_TEMPLATE" = "cms" ]; then
-    export DP_INSTALL_PROFILE=''
-  else
-    export DP_INSTALL_PROFILE='standard'
-  fi
-fi
+echo ""
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # AI MODULE CONFIGURATION (Dependency-Driven Architecture)

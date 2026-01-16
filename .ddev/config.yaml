@@ -37,8 +37,8 @@ web_environment:
     - # ---------------------------------------------------------------------------
     - # Direct mappings to your DDEV environment variables (keep names identical)
     - # ---------------------------------------------------------------------------
-    - DP_STARTER_TEMPLATE=cms        # Starter template (core or cms)
-    - DP_VERSION=1.2.0               # Drupal version [CMS: 1.2.0, Core: 11.x]
+    - DP_STARTER_TEMPLATE=core       # Starter template (core or cms)
+    - DP_VERSION=                    # Drupal version [CMS: 1.2.0, Core: 11.x, Empty: Latest stable]
 
     - # ---------------------------------------------------------------------------
     - # AI module / PR testing defaults
