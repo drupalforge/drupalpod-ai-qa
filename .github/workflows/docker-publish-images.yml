@@ -15,7 +15,7 @@ jobs:
     uses: ./.github/workflows/docker-publish-image.yml
     with:
       webserver_image: devpanel/php:8.2-base-ai
-      drupal_core_version: '10.x'
+      drupal_version: '10.x'
       image_tag_suffix: core
     secrets: inherit
 
@@ -33,6 +33,6 @@ jobs:
     uses: ./.github/workflows/docker-publish-image.yml
     with:
       webserver_image: devpanel/php:8.3-base-ai
-      drupal_core_version: '11.x'
+      drupal_version: '11.x'
       image_tag_suffix: core
     secrets: inherit
