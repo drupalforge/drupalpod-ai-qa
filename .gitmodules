@@ -34,3 +34,11 @@
 	path = repos/ai_seo
 	url = https://git.drupalcode.org/project/ai_seo.git
 	ignore = dirty
+[submodule "repos/ai_eca"]
+	path = repos/ai_eca
+	url = https://git.drupalcode.org/project/ai_eca.git
+	ignore = dirty
+[submodule "repos/ai_provider_amazeeio"]
+	path = repos/ai_provider_amazeeio
+	url = https://git.drupalcode.org/project/ai_provider_amazeeio.git
+	ignore = dirty

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
-
 echo
 time $DRUSH -n en ai_provider_litellm
 $DRUSH -n key-save litellm_api_key --label="LiteLLM API key" --key-provider=env --key-provider-settings='{

@@ -1,0 +1,190 @@
+[
+  {
+    "name": "CMS 1.x with all modules (ai_search SKIPPED)",
+    "description": "Resolves to AI 1.x, ai_search gets skipped (needs AI 2.x)",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true,
+      "ai_version_pattern": "^1\\.",
+      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents"],
+      "modules_skipped": ["ai_search"],
+      "comment": "Resolves to AI 1.x, ai_search skipped (incompatible)"
+    }
+  },
+  {
+    "name": "CMS 1.x with forced AI 2.x (ai_agents SKIPPED)",
+    "description": "Force AI 2.x, ai_agents is incompatible and gets skipped",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.x",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true,
+      "lenient_enabled": true,
+      "lenient_packages": ["drupal/ai"],
+      "ai_version_pattern": "^2\\..*-dev$",
+      "modules_resolved": ["ai", "ai_provider_litellm", "ai_search"],
+      "modules_skipped": ["ai_agents"],
+      "comment": "AI 2.x explicit, ai_search works, ai_agents skipped"
+    }
+  },
+  {
+    "name": "Core 11.x with all modules (ai_search SKIPPED)",
+    "description": "Resolves to AI 1.x, ai_search skipped",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "11.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true,
+      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents"],
+      "modules_skipped": ["ai_search"],
+      "comment": "Resolves to AI 1.x, ai_search skipped"
+    }
+  },
+  {
+    "name": "Core 11.x with forced AI 2.x (ai_agents SKIPPED)",
+    "description": "Force AI 2.x on core, ai_agents skipped",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "11.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.x",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true,
+      "lenient_enabled": true,
+      "lenient_packages": ["drupal/ai"],
+      "ai_version_pattern": "^2\\..*-dev$",
+      "modules_resolved": ["ai", "ai_provider_litellm", "ai_search"],
+      "modules_skipped": ["ai_agents"]
+    }
+  },
+  {
+    "name": "Drupal 10.4.x with all modules (ai_search SKIPPED)",
+    "description": "Older core with all modules",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "10.4.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true,
+      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents"],
+      "modules_skipped": ["ai_search"]
+    }
+  },
+  {
+    "name": "DP_TEST_MODULE: ai_seo with all modules (ai_search SKIPPED)",
+    "description": "Test ai_seo module - ai_search gets skipped",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
+      "DP_TEST_MODULE": "ai_seo",
+      "DP_TEST_MODULE_VERSION": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "ai_version_pattern": "^1\\.",
+      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents", "ai_seo"],
+      "modules_skipped": ["ai_search"],
+      "comment": "ai_seo + ai_agents require AI 1.x, ai_search skipped"
+    }
+  },
+  {
+    "name": "DP_TEST_MODULE: ai_seo with forced AI 2.x (should FAIL)",
+    "description": "Force AI 2.x but ai_seo requires AI ^1 - test module fails",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.x",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
+      "DP_TEST_MODULE": "ai_seo",
+      "DP_TEST_MODULE_VERSION": ""
+    },
+    "expect": {
+      "should_succeed": false,
+      "comment": "AI 2.x explicit, but ai_seo requires AI ^1 - test module incompatible"
+    }
+  },
+  {
+    "name": "DP_TEST_MODULE: ai_seo explicit with AI 2.x (lenient mode)",
+    "description": "Both versions explicit - lenient allows testing",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.x",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
+      "DP_TEST_MODULE": "ai_seo",
+      "DP_TEST_MODULE_VERSION": "1.x"
+    },
+    "expect": {
+      "should_succeed": true,
+      "lenient_enabled": true,
+      "lenient_packages": ["drupal/ai", "drupal/ai_seo"],
+      "modules_resolved": ["ai", "ai_provider_litellm", "ai_search", "ai_seo"],
+      "modules_skipped": ["ai_agents"],
+      "comment": "Both explicit = lenient allows incompatible combo, ai_agents skipped"
+    }
+  },
+  {
+    "name": "Test AI module PR branch",
+    "description": "Test a PR for the base AI module",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
+      "DP_AI_ISSUE_FORK": "3493720",
+      "DP_AI_ISSUE_BRANCH": "3493720-some-feature"
+    },
+    "expect": {
+      "should_succeed": true,
+      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents"],
+      "modules_skipped": ["ai_search"],
+      "comment": "PR branch cloned for AI module, resolves to AI 1.x"
+    }
+  },
+  {
+    "name": "Test module PR branch",
+    "description": "Test a PR for ai_seo test module",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
+      "DP_TEST_MODULE": "ai_seo",
+      "DP_TEST_MODULE_VERSION": "",
+      "DP_TEST_MODULE_ISSUE_FORK": "3500000",
+      "DP_TEST_MODULE_ISSUE_BRANCH": "3500000-fix-bug"
+    },
+    "expect": {
+      "should_succeed": true,
+      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents", "ai_seo"],
+      "modules_skipped": ["ai_search"],
+      "comment": "PR branch cloned for test module"
+    }
+  }
+]

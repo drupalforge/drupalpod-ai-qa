@@ -14,7 +14,7 @@ hooks:
         # Set up debugging.
         - exec: test -f .vscode/launch.json || mkdir -p .vscode && cp .ddev/launch.json .vscode/
         # Run initial setup tasks only when needed (DP_REBUILD=1 or Drupal not installed).
-        - exec: 'if [ "${DP_REBUILD:-0}" = "1" ] || ! drush status --field=bootstrap 2>/dev/null | grep -q "Successful"; then bash "$(pwd)/.devpanel/init.sh"; fi'
+        - exec: 'if [ "${DP_REBUILD:-0}" = "1" ] || ! drush status --field=bootstrap 2>/dev/null | grep -q "Successful"; then bash "$(pwd)/scripts/init.sh"; fi'
 use_dns_when_possible: true
 composer_version: "2"
 web_environment:
@@ -28,7 +28,7 @@ web_environment:
     - DB_NAME=db
     - DP_APP_ID=drupalpod_ai_qa
     - DB_DRIVER=mysql
-    - DP_AI_MODULES=ai_provider_litellm,ai_search,ai_agents
+    - DP_AI_MODULES=ai_search,ai_agents,ai_provider_amazeeio
 
     - # ============================================================================
     - # DevPanel / Drupal defaults - customisable
@@ -37,8 +37,8 @@ web_environment:
     - # ---------------------------------------------------------------------------
     - # Direct mappings to your DDEV environment variables (keep names identical)
     - # ---------------------------------------------------------------------------
-    - DP_STARTER_TEMPLATE=core       # Starter template (core or cms)
-    - DP_VERSION=                    # Drupal version [CMS: 1.2.0, Core: 11.x, Empty: Latest stable]
+    - DP_STARTER_TEMPLATE=cms             # Starter template (core or cms)
+    - DP_VERSION=                         # Drupal version [CMS: 1.2.0, Core: 11.x, Empty: Latest stable]
 
     - # ---------------------------------------------------------------------------
     - # AI module / PR testing defaults

@@ -1,8 +1,9 @@
-# DevPanel Shell Script Tests
+# Setup Script Tests
 
-Test suite for `.devpanel/*.sh` scripts using [bats](https://github.com/bats-core/bats-core).
+Test suite for `scripts/*.sh` scripts using [bats](https://github.com/bats-core/bats-core).
 
 **Tests verify logic and decisions, not actual execution** - no repos are cloned, no composer is run!
+`jq` is required for plan parsing tests.
 
 ## Installation
 
@@ -38,35 +39,27 @@ bats tests/integration.bats
 
 ### Unit Tests (Helper Functions)
 
-**`fallback_setup.bats`** - Tests for `.devpanel/fallback_setup.sh`
+**`fallback_setup.bats`** - Tests for `scripts/fallback_setup.sh`
 - ✓ Default value detection
 - ✓ AI version auto-detection from CMS/Core version
 - ✓ Explicit version tracking (DP_AI_MODULE_VERSION_EXPLICIT flag)
 - ✓ Version validation (CMS vs Core)
 
-**`clone_ai_modules.bats`** - Tests for `.devpanel/clone_ai_modules.sh`
-- ✓ Helper function tests (`get_compatible_version`, `is_compatible_with_ai`)
-- ✓ Version constraint parsing (^2.0 → 2.0.x, ~1.2.0 → 1.2.x)
-- ✓ Compatibility checking
-- ✓ Edge cases (missing composer.json, no AI dependency)
+**`clone_modules.bats`** - Tests for `scripts/clone_modules.sh`
+- ✓ Composer version → git branch/tag normalization
+- ✓ Resolution plan parsing
+
+**`resolve_modules.bats`** - Tests for `scripts/resolve_modules.sh`
+- ✓ Plan generation from `composer.lock`
+- ✓ Skipped package reporting
 
 ### Integration Tests (Decision Logic)
 
 **`integration.bats`** - Tests the **decisions** the scripts make (without actually cloning or installing):
 
-**Use Case: Test Module Specified**
-- ✓ ai_search with empty AI version → auto-detect AI 2.0.x
-- ✓ ai_search with explicit AI 1.2.x → detect conflict (should fail)
-
-**Use Case: DP_AI_MODULES with Compatibility Filtering**
-- ✓ AI 1.2.x → ai_search incompatible (skip)
-- ✓ AI 1.2.x → ai_provider_litellm compatible (include)
-- ✓ AI 1.2.x → ai_agents compatible (include)
-- ✓ AI 2.0.x → ai_search compatible (include)
-
-**Use Case: Edge Cases**
-- ✓ Module without composer.json → treat as compatible
-- ✓ Module without AI dependency → treat as compatible
+**Use Case: Resolution Plan**
+- ✓ Plan includes only requested packages from `composer.lock`
+- ✓ Plan captures allow-incompatible flag
 
 ## Writing New Tests
 

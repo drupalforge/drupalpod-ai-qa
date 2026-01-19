@@ -2,12 +2,17 @@
 set -eu -o pipefail
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Directory Setup (works in both DDEV and GitHub Actions environments)
+# Setup Composer Project from CMS/Core Template.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# APP_ROOT is set by environment (DDEV or GitHub Actions) to the composer root
-# PROJECT_ROOT is the parent directory (where repos/ lives)
-DEVPANEL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$DEVPANEL_DIR")"
+# This script creates a new Drupal project (CMS or Core), configures it,
+# and adds AI modules as path repositories.
+
+# Load common utilities (skip if already loaded by parent script).
+if [ -z "${SCRIPT_DIR:-}" ]; then
+    export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$SCRIPT_DIR/lib/common.sh"
+    init_common
+fi
 
 cd "$APP_ROOT"
 
@@ -15,40 +20,9 @@ cd "$APP_ROOT"
 # Options: "cms" or "core"
 STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-cms}"
 
-# Determine the composer package and version.
-if [ "$STARTER_TEMPLATE" = "cms" ]; then
-    COMPOSER_PROJECT="drupal/cms"
-    # For CMS versions: 1.x, 1.0.0, 2.0.0, etc. (empty = latest stable)
-    d="$DP_VERSION"
-    if [ -z "$d" ]; then
-        install_version=""
-    else
-        case $d in
-        *.x)
-            install_version="$d"-dev
-            ;;
-        *)
-            install_version="$d"
-            ;;
-        esac
-    fi
-else
-    COMPOSER_PROJECT="drupal/recommended-project"
-    # For core versions: 11.x, 11.2.8, etc. (empty = latest stable)
-    d="$DP_VERSION"
-    if [ -z "$d" ]; then
-        install_version=""
-    else
-        case $d in
-        *.x)
-            install_version="$d"-dev
-            ;;
-        *)
-            install_version=~"$d"
-            ;;
-        esac
-    fi
-fi
+# Resolve composer project + version constraint in one place.
+source "$PROJECT_ROOT/scripts/lib/project_selector.sh"
+resolve_project_selection
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Generate composer.json from CMS/Core template using temp directory
@@ -63,10 +37,10 @@ fi
 rm -rf temp-composer-files
 
 # Create the project template in temp directory.
-if [ -n "$install_version" ]; then
-    time composer create-project -n --no-install "$COMPOSER_PROJECT":"$install_version" temp-composer-files
+if [ -n "$INSTALL_VERSION" ]; then
+    time composer create-project --prefer-dist -n --no-install "$COMPOSER_PROJECT":"$INSTALL_VERSION" temp-composer-files
 else
-    time composer create-project -n --no-install "$COMPOSER_PROJECT" temp-composer-files
+    time composer create-project --prefer-dist -n --no-install "$COMPOSER_PROJECT" temp-composer-files
 fi
 
 # Copy all files (including hidden files) from temp to docroot.
@@ -77,16 +51,24 @@ rm -rf temp-composer-files
 
 # Programmatically fix Composer 2.2 allow-plugins to avoid errors.
 # IMPORTANT: Do this FIRST before any other composer config commands to avoid warnings.
-composer config --no-plugins allow-plugins.composer/installers true
-composer config --no-plugins allow-plugins.drupal/core-project-message true
-composer config --no-plugins allow-plugins.drupal/core-vendor-hardening true
-composer config --no-plugins allow-plugins.drupal/core-composer-scaffold true
-composer config --no-plugins allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
-composer config --no-plugins allow-plugins.phpstan/extension-installer true
-composer config --no-plugins allow-plugins.mglaman/composer-drupal-lenient true
-composer config --no-plugins allow-plugins.php-http/discovery true
-composer config --no-plugins allow-plugins.tbachert/spi false
-composer config --no-plugins allow-plugins.cweagans/composer-patches true
+ALLOWED_PLUGINS=(
+    "composer/installers:true"
+    "drupal/core-project-message:true"
+    "drupal/core-vendor-hardening:true"
+    "drupal/core-composer-scaffold:true"
+    "dealerdirect/phpcodesniffer-composer-installer:true"
+    "phpstan/extension-installer:true"
+    "mglaman/composer-drupal-lenient:true"
+    "php-http/discovery:true"
+    "tbachert/spi:false"
+    "cweagans/composer-patches:true"
+)
+
+for plugin_config in "${ALLOWED_PLUGINS[@]}"; do
+    plugin="${plugin_config%:*}"
+    value="${plugin_config#*:}"
+    composer config --no-plugins "allow-plugins.${plugin}" "$value"
+done
 
 # Set minimum-stability to dev to allow alpha/beta packages (needed for dev versions).
 composer config minimum-stability dev
@@ -97,19 +79,19 @@ composer config extra.composer-exit-on-patch-failure false
 # Scaffold settings.php.
 composer config --json extra.drupal-scaffold.file-mapping '{"[web-root]/sites/default/settings.php":{"path":"web/core/assets/scaffold/files/default.settings.php","overwrite":false}}'
 composer config scripts.post-drupal-scaffold-cmd \
-    "cd web/sites/default && test -z \"\$(grep 'include \\\$devpanel_settings;' settings.php)\" && patch -Np1 -r /dev/null < $DEVPANEL_DIR/drupal-settings.patch || :"
+    "cd web/sites/default && test -z \"\$(grep 'include \\\$devpanel_settings;' settings.php)\" && patch -Np1 -r /dev/null < $DEV_PANEL_DIR/drupal-settings.patch || :"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # AI MODULES FROM GIT (Path Repositories)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Add path repositories ONLY for compatible AI modules
-# Incompatible modules are cloned (available in repos/) but not added to composer
+# Add path repositories for all resolved AI modules
+# All modules must be compatible (resolved via Composer dependency resolution)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-if [ -n "${COMPATIBLE_AI_MODULES:-}" ]; then
-    echo "Adding path repositories for compatible AI modules..."
+if [ -n "${COMPATIBLE_MODULES:-}" ]; then
+    echo "Adding path repositories for AI modules..."
 
-    IFS=',' read -ra MODULES <<< "$COMPATIBLE_AI_MODULES"
+    IFS=',' read -ra MODULES <<< "$COMPATIBLE_MODULES"
     for module in "${MODULES[@]}"; do
         module=$(echo "$module" | xargs)  # Trim whitespace
 
@@ -123,11 +105,11 @@ if [ -n "${COMPATIBLE_AI_MODULES:-}" ]; then
                 "{\"type\": \"path\", \"url\": \"$PROJECT_ROOT/repos/$module\", \"options\": {\"symlink\": true}}"
 
             # Require from path (use *@dev to accept version from module's composer.json).
-            composer require -n --no-update "drupal/$module:*@dev"
+            composer require --prefer-dist -n --no-update "drupal/$module:*@dev"
         fi
     done
 
-    echo "Path repositories added for compatible AI modules!"
+    echo "Path repositories added for AI modules!"
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -343,7 +325,7 @@ if [ "$STARTER_TEMPLATE" = "cms" ]; then
     }'
 
     # Require all CMS dependencies (Webform libraries only - AI modules come from git).
-    composer require -n --no-update --dev \
+    composer require --prefer-dist -n --no-update --dev \
         cweagans/composer-patches:^2@beta \
         drush/drush:^13.6 \
         codemirror/codemirror \
@@ -363,7 +345,7 @@ else
     echo "Adding Core AI dependencies (lean setup for quick PR/issue testing)..."
 
     # Core variant: Search only - AI modules come from git via path repos.
-    composer require -n --no-update \
+    composer require --prefer-dist -n --no-update \
         cweagans/composer-patches:^2@beta \
         drush/drush:^13.6 \
         drupal/search_api \
