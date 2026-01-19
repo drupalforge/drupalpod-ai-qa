@@ -14,7 +14,7 @@ jobs:
     uses: ./.github/workflows/docker-publish-image.yml
     with:
       webserver_image: devpanel/php:8.2-base-ai
-      drupal_version: '10.x'
+      drupal_version: '10.4.x'
       image_tag_suffix: core
     secrets: inherit
 
