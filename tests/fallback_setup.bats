@@ -12,7 +12,6 @@ setup() {
     unset DP_VERSION
     unset DP_AI_MODULE
     unset DP_AI_MODULE_VERSION
-    unset DP_AI_MODULE_VERSION_EXPLICIT
     unset DP_TEST_MODULE
 }
 
@@ -70,32 +69,11 @@ setup() {
 }
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Explicit Version Tracking Tests
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-@test "DP_AI_MODULE_VERSION_EXPLICIT=no when version is auto-detected" {
-    export DP_STARTER_TEMPLATE="core"
-    export DP_VERSION="11.x"
-    # Don't set DP_AI_MODULE_VERSION - let it auto-detect
-    source scripts/fallback_setup.sh
-    [ "$DP_AI_MODULE_VERSION_EXPLICIT" = "no" ]
-}
-
-@test "DP_AI_MODULE_VERSION_EXPLICIT=yes when version is explicitly set" {
-    export DP_STARTER_TEMPLATE="core"
-    export DP_VERSION="11.x"
-    export DP_AI_MODULE_VERSION="2.0.x"  # Explicitly set
-    source scripts/fallback_setup.sh
-    [ "$DP_AI_MODULE_VERSION_EXPLICIT" = "yes" ]
-    [ "$DP_AI_MODULE_VERSION" = "2.0.x" ]
-}
-
 @test "Empty DP_AI_MODULE_VERSION stays empty (dependency-driven)" {
     export DP_STARTER_TEMPLATE="core"
     export DP_VERSION="11.x"
     export DP_AI_MODULE_VERSION=""  # Empty string
     source scripts/fallback_setup.sh
-    [ "$DP_AI_MODULE_VERSION_EXPLICIT" = "no" ]
     [ -z "$DP_AI_MODULE_VERSION" ]  # Stays empty
 }
 

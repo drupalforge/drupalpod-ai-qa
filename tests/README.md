@@ -77,7 +77,6 @@ Example scenario:
 **`fallback_setup.bats`** - Tests for `scripts/fallback_setup.sh`
 - ✓ Default value detection
 - ✓ AI version auto-detection from CMS/Core version
-- ✓ Explicit version tracking (DP_AI_MODULE_VERSION_EXPLICIT flag)
 - ✓ Version validation (CMS vs Core)
 
 **`clone_modules.bats`** - Tests for `scripts/clone_modules.sh`
