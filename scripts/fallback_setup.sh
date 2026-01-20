@@ -93,6 +93,26 @@ export DP_TEST_MODULE_VERSION=${DP_TEST_MODULE_VERSION:-''}
 export DP_TEST_MODULE_ISSUE_FORK=${DP_TEST_MODULE_ISSUE_FORK:-''}
 export DP_TEST_MODULE_ISSUE_BRANCH=${DP_TEST_MODULE_ISSUE_BRANCH:-''}
 
+require_issue_version() {
+    local label="$1"
+    local version_var="$2"
+    local fork_var="$3"
+    local branch_var="$4"
+    local version_value="${!version_var:-}"
+    local fork_value="${!fork_var:-}"
+    local branch_value="${!branch_var:-}"
+
+    if [ -n "$fork_value" ] || [ -n "$branch_value" ]; then
+        if [ -z "$version_value" ]; then
+            echo "ERROR: $label PR testing requires $version_var when using $fork_var/$branch_var." >&2
+            exit 1
+        fi
+    fi
+}
+
+require_issue_version "AI module" "DP_AI_MODULE_VERSION" "DP_AI_ISSUE_FORK" "DP_AI_ISSUE_BRANCH"
+require_issue_version "Test module" "DP_TEST_MODULE_VERSION" "DP_TEST_MODULE_ISSUE_FORK" "DP_TEST_MODULE_ISSUE_BRANCH"
+
 # Show final AI module configurations.
 echo "  AI Module Configuration:"
 echo "   - AI Base: $DP_AI_MODULE @ $DP_AI_MODULE_VERSION"

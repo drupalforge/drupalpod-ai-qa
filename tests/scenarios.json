@@ -154,10 +154,11 @@
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
-      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULE_VERSION": "1.2.x",
       "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
       "DP_AI_ISSUE_FORK": "3493720",
-      "DP_AI_ISSUE_BRANCH": "3493720-some-feature"
+      "DP_AI_ISSUE_BRANCH": "3493720-some-feature",
+      "run_clone": true
     },
     "expect": {
       "should_succeed": true,
@@ -176,15 +177,192 @@
       "DP_AI_MODULE_VERSION": "",
       "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
       "DP_TEST_MODULE": "ai_seo",
-      "DP_TEST_MODULE_VERSION": "",
+      "DP_TEST_MODULE_VERSION": "1.0.7",
       "DP_TEST_MODULE_ISSUE_FORK": "3500000",
-      "DP_TEST_MODULE_ISSUE_BRANCH": "3500000-fix-bug"
+      "DP_TEST_MODULE_ISSUE_BRANCH": "3500000-fix-bug",
+      "run_clone": true
     },
     "expect": {
       "should_succeed": true,
       "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents", "ai_seo"],
       "modules_skipped": ["ai_search"],
       "comment": "PR branch cloned for test module"
+    }
+  },
+  {
+    "name": "CMS 1.2.9 baseline",
+    "description": "CMS release with default AI version resolution",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.2.9",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true
+    }
+  },
+  {
+    "name": "CMS 2.0.0-rc1 baseline",
+    "description": "CMS release candidate with default AI version resolution",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "2.0.0-rc1",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true
+    }
+  },
+  {
+    "name": "CMS 2.0.x baseline",
+    "description": "CMS dev branch with default AI version resolution",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "2.0.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true
+    }
+  },
+  {
+    "name": "CMS 1.2.x baseline",
+    "description": "CMS dev branch with default AI version resolution",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.2.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true
+    }
+  },
+  {
+    "name": "Core 11.2.10 baseline",
+    "description": "Core release with default AI version resolution",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "11.2.10",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true
+    }
+  },
+  {
+    "name": "Core 10.6.2 baseline",
+    "description": "Core release with default AI version resolution",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "10.6.2",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true
+    }
+  },
+  {
+    "name": "Core 10.6.x baseline",
+    "description": "Core dev branch with default AI version resolution",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "10.6.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true
+    }
+  },
+  {
+    "name": "Core 10.4 baseline",
+    "description": "Core minor branch with default AI version resolution",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "10.4",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true
+    }
+  },
+  {
+    "name": "CMS with AI 1.2.5",
+    "description": "Explicit AI version on CMS",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.2.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "1.2.5",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true,
+      "lenient_enabled": true,
+      "lenient_packages": ["drupal/ai"]
+    }
+  },
+  {
+    "name": "CMS with AI 1.1.8",
+    "description": "Explicit AI version on CMS",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.2.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "1.1.8",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true,
+      "lenient_enabled": true,
+      "lenient_packages": ["drupal/ai"]
+    }
+  },
+  {
+    "name": "CMS with AI 1.0.x",
+    "description": "Explicit AI branch on CMS",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.2.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "1.0.x",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true,
+      "lenient_enabled": true,
+      "lenient_packages": ["drupal/ai"]
+    }
+  },
+  {
+    "name": "CMS with AI 2.0.x",
+    "description": "Explicit AI branch on CMS",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.2.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": true,
+      "lenient_enabled": true,
+      "lenient_packages": ["drupal/ai"]
     }
   }
 ]

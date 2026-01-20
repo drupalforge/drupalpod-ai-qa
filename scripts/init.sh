@@ -6,6 +6,13 @@ if [ -n "${DEBUG_SCRIPT:-}" ]; then
 fi
 set -eu -o pipefail
 
+# Predefine optional env vars for set -u safety.
+: "${DEBUG_SCRIPT:=}"
+: "${DP_REBUILD:=}"
+: "${DP_VSCODE_EXTENSIONS:=}"
+: "${DP_INSTALL_PROFILE:=}"
+: "${DP_AI_VIRTUAL_KEY:=}"
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Directory Setup (works in both DDEV and GitHub Actions environments).
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -69,10 +76,10 @@ fi
 mkdir -p "$APP_ROOT"
 cd "$APP_ROOT"
 
-# Remove root-owned artifacts.
+# Remove root-owned artifacts (avoid sudo; ignore if not present).
 echo
 echo "Remove root-owned files."
-time sudo rm -rf lost+found
+rm -rf lost+found 2>/dev/null || true
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Composer setup
@@ -84,8 +91,6 @@ else
 fi
 
 # Ensure dependencies are installed.
-composer -n update --prefer-dist --no-progress || composer dump-autoload
-
 echo 'Running composer update...'
 time composer -n update --prefer-dist --no-progress || {
   echo "Composer update encountered errors (likely patch failures), but continuing..."

@@ -42,7 +42,6 @@ clone_module() {
 
     # Navigate to module repo and fetch updates.
     cd "$PROJECT_ROOT/repos/$module_name"
-    git fetch origin
     git fetch --all --tags
 
     # Determine checkout target: PR branch, specific version, or latest stable.

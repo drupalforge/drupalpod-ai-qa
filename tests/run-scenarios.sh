@@ -57,21 +57,29 @@ run_scenario() {
     export DP_AI_ISSUE_BRANCH=$(echo "$scenario_json" | jq -r '.env.DP_AI_ISSUE_BRANCH // ""')
     export DP_TEST_MODULE=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE // ""')
     export DP_TEST_MODULE_VERSION=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE_VERSION // ""')
+    export DP_TEST_MODULE_ISSUE_FORK=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE_ISSUE_FORK // ""')
+    export DP_TEST_MODULE_ISSUE_BRANCH=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE_ISSUE_BRANCH // ""')
     export DP_AI_MODULES=$(echo "$scenario_json" | jq -r '.env.DP_AI_MODULES // ""')
+    RUN_CLONE=$(echo "$scenario_json" | jq -r '.env.run_clone // false')
 
     # Create test-specific log directory
     TEST_LOG_DIR="$PROJECT_ROOT/logs/test-$index"
     mkdir -p "$TEST_LOG_DIR"
-    export DP_AI_RESOLVE_PLAN="$TEST_LOG_DIR/ai-manifest.json"
+    export DP_MODULE_MANIFEST="$TEST_LOG_DIR/ai-manifest.json"
 
     echo "Environment:"
     echo "  DP_STARTER_TEMPLATE: $DP_STARTER_TEMPLATE"
     echo "  DP_VERSION: $DP_VERSION"
     echo "  DP_AI_MODULE: $DP_AI_MODULE"
     echo "  DP_AI_MODULE_VERSION: $DP_AI_MODULE_VERSION"
+    [ -n "$DP_AI_ISSUE_FORK" ] && echo "  DP_AI_ISSUE_FORK: $DP_AI_ISSUE_FORK"
+    [ -n "$DP_AI_ISSUE_BRANCH" ] && echo "  DP_AI_ISSUE_BRANCH: $DP_AI_ISSUE_BRANCH"
     [ -n "$DP_TEST_MODULE" ] && echo "  DP_TEST_MODULE: $DP_TEST_MODULE"
     [ -n "$DP_TEST_MODULE_VERSION" ] && echo "  DP_TEST_MODULE_VERSION: $DP_TEST_MODULE_VERSION"
+    [ -n "$DP_TEST_MODULE_ISSUE_FORK" ] && echo "  DP_TEST_MODULE_ISSUE_FORK: $DP_TEST_MODULE_ISSUE_FORK"
+    [ -n "$DP_TEST_MODULE_ISSUE_BRANCH" ] && echo "  DP_TEST_MODULE_ISSUE_BRANCH: $DP_TEST_MODULE_ISSUE_BRANCH"
     [ -n "$DP_AI_MODULES" ] && echo "  DP_AI_MODULES: $DP_AI_MODULES"
+    echo "  run_clone: $RUN_CLONE"
     echo ""
 
     # Run resolution script
@@ -83,9 +91,9 @@ run_scenario() {
     fi
 
     # Check if plan file was created
-    if [ -f "$DP_AI_RESOLVE_PLAN" ]; then
+    if [ -f "$DP_MODULE_MANIFEST" ]; then
         echo "Resolution plan created:"
-        cat "$DP_AI_RESOLVE_PLAN" | jq '.'
+        cat "$DP_MODULE_MANIFEST" | jq '.'
     else
         echo "No resolution plan created (script failed)"
     fi
@@ -108,13 +116,13 @@ run_scenario() {
     fi
 
     # If expected to succeed, validate the plan
-    if [ "$should_succeed" = "true" ] && [ "$ACTUAL_SUCCESS" = "true" ] && [ -f "$DP_AI_RESOLVE_PLAN" ]; then
+    if [ "$should_succeed" = "true" ] && [ "$ACTUAL_SUCCESS" = "true" ] && [ -f "$DP_MODULE_MANIFEST" ]; then
 
         # Check resolved modules
         local expected_modules=$(echo "$scenario_json" | jq -r '.expect.modules_resolved[]? // empty')
         if [ -n "$expected_modules" ]; then
             while IFS= read -r module; do
-                if jq -e ".packages[] | select(.name==\"drupal/$module\")" "$DP_AI_RESOLVE_PLAN" > /dev/null; then
+                if jq -e ".packages[] | select(.name==\"drupal/$module\")" "$DP_MODULE_MANIFEST" > /dev/null; then
                     echo -e "  ${GREEN}✓ Module resolved: $module${NC}"
                 else
                     echo -e "  ${RED}✗ Module NOT resolved: $module${NC}"
@@ -126,7 +134,7 @@ run_scenario() {
         # Check AI version pattern
         local ai_version_pattern=$(echo "$scenario_json" | jq -r '.expect.ai_version_pattern // ""')
         if [ -n "$ai_version_pattern" ]; then
-            local actual_ai_version=$(jq -r ".packages[] | select(.name==\"drupal/$DP_AI_MODULE\") | .version" "$DP_AI_RESOLVE_PLAN")
+            local actual_ai_version=$(jq -r ".packages[] | select(.name==\"drupal/$DP_AI_MODULE\") | .version" "$DP_MODULE_MANIFEST")
             if echo "$actual_ai_version" | grep -E "$ai_version_pattern" > /dev/null; then
                 echo -e "  ${GREEN}✓ AI version matches pattern: $actual_ai_version ~ $ai_version_pattern${NC}"
             else
@@ -163,13 +171,24 @@ run_scenario() {
         local expected_skipped=$(echo "$scenario_json" | jq -r '.expect.modules_skipped[]? // empty')
         if [ -n "$expected_skipped" ]; then
             while IFS= read -r module; do
-                if jq -e ".skipped_packages[] | select(. == \"drupal/$module\")" "$DP_AI_RESOLVE_PLAN" > /dev/null 2>&1; then
+                if jq -e ".skipped_packages[] | select(. == \"drupal/$module\")" "$DP_MODULE_MANIFEST" > /dev/null 2>&1; then
                     echo -e "  ${GREEN}✓ Module skipped: $module${NC}"
                 else
                     echo -e "  ${RED}✗ Module NOT skipped: $module${NC}"
                     test_passed=false
                 fi
             done <<< "$expected_skipped"
+        fi
+    fi
+
+    if [ "$RUN_CLONE" = "true" ] && [ "$ACTUAL_SUCCESS" = "true" ]; then
+        echo ""
+        echo "Cloning modules from plan..."
+        if bash "$PROJECT_ROOT/scripts/clone_modules.sh" >> "$TEST_LOG_DIR/output.log" 2>&1; then
+            echo -e "  ${GREEN}✓ Clone step completed${NC}"
+        else
+            echo -e "  ${RED}✗ Clone step failed${NC}"
+            test_passed=false
         fi
     fi
 
