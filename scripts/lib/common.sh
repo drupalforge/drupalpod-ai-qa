@@ -24,6 +24,20 @@ init_common() {
     mkdir -p "$LOG_DIR"
 }
 
+# Logging helpers (set NO_COLOR=1 to disable).
+# Logging helpers.
+log_info() {
+    printf "[DP] %s\n" "$*"
+}
+
+log_warn() {
+    printf "[DP] %s\n" "$*"
+}
+
+log_error() {
+    printf "[DP] %s\n" "$*"
+}
+
 # Check for jq dependency.
 # Exits with error if jq is not found.
 require_jq() {
@@ -105,6 +119,45 @@ normalize_composer_version_to_git() {
 
     if [[ "$version" == *-dev ]]; then
         echo "${version%-dev}"
+        return
+    fi
+
+    echo "$version"
+}
+
+# Normalize version input to a Composer constraint.
+# Examples:
+#   ""        -> "*"
+#   "1"       -> "^1"
+#   "1.2"     -> "~1.2"
+#   "1.x"     -> "1.x-dev"
+#   "1.2.x"   -> "1.2.x-dev"
+#   "1.2.3"   -> "1.2.3"
+normalize_version_to_composer() {
+    local version=${1:-}
+
+    if [ -z "$version" ]; then
+        echo "*"
+        return
+    fi
+
+    if [[ "$version" =~ ^[0-9]+$ ]]; then
+        echo "^$version"
+        return
+    fi
+
+    if [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]]; then
+        echo "~$version"
+        return
+    fi
+
+    if [[ "$version" =~ ^[0-9]+\.x$ ]]; then
+        echo "${version}-dev"
+        return
+    fi
+
+    if [[ "$version" == *.x ]]; then
+        echo "${version}-dev"
         return
     fi
 

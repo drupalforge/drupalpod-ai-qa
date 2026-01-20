@@ -24,14 +24,10 @@ if [ -n "$DP_VERSION" ]; then
   echo "  → Version explicitly set: $DP_VERSION"
   echo "    Version: $DP_VERSION (explicit)"
 else
-  echo "  → No version specified, using latest stable"
+  echo "  → No version specified, will use latest stable"
   echo "    Version: latest stable (auto-detected)"
 fi
 echo ""
-
-# Optional: Enable extra modules.
-export DP_EXTRA_DEVEL=1
-export DP_EXTRA_ADMIN_TOOLBAR=1
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Drupal Install Profile Selection"
@@ -60,11 +56,11 @@ fi
 echo ""
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# AI MODULE CONFIGURATION (Dependency-Driven Architecture)
+# AI MODULE CONFIGURATION
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# AI version is dynamically determined from:
-# 1. Test module's composer.json (if DP_TEST_MODULE set)
-# 2. Latest dev branch (if not set)
+# AI versions are resolved by Composer in scripts/resolve_modules.sh.
+# If DP_TEST_MODULE is set, its constraints influence the AI version.
+# If DP_AI_MODULE_VERSION is empty, the resolver picks a compatible version.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # AI base module (ALWAYS cloned from git).
@@ -72,14 +68,11 @@ export DP_AI_MODULE=${DP_AI_MODULE:-'ai'}
 
 # Track if user explicitly set AI version.
 if [ -z "${DP_AI_MODULE_VERSION:-}" ]; then
-    # User didn't set it - leave empty for auto-detection from test module
-    # If no test module, clone_modules.sh will use latest dev branch.
+    # User didn't set it - leave empty for composer resolution.
     export DP_AI_MODULE_VERSION=""
-    export DP_AI_MODULE_VERSION_EXPLICIT="no"
-    echo "  AI version will be auto-detected from test module dependencies"
+    echo "  AI version will be auto-detected by composer resolution"
 else
     # User explicitly set it.
-    export DP_AI_MODULE_VERSION_EXPLICIT="yes"
     echo "  AI version explicitly set to: $DP_AI_MODULE_VERSION"
 fi
 
@@ -93,6 +86,49 @@ export DP_TEST_MODULE_VERSION=${DP_TEST_MODULE_VERSION:-''}
 export DP_TEST_MODULE_ISSUE_FORK=${DP_TEST_MODULE_ISSUE_FORK:-''}
 export DP_TEST_MODULE_ISSUE_BRANCH=${DP_TEST_MODULE_ISSUE_BRANCH:-''}
 
+# Validate optional AI module list against an allowlist to avoid pulling
+# unexpected packages from Composer.
+ALLOWED_AI_MODULES=()
+if [ -n "${PROJECT_ROOT:-}" ] && [ -d "$PROJECT_ROOT/repos" ]; then
+    while IFS= read -r -d '' repo_dir; do
+        ALLOWED_AI_MODULES+=("$(basename "$repo_dir")")
+    done < <(find "$PROJECT_ROOT/repos" -mindepth 1 -maxdepth 1 -type d -print0)
+fi
+
+# Fallback allowlist for environments without repos checked out yet.
+if [ "${#ALLOWED_AI_MODULES[@]}" -eq 0 ]; then
+    ALLOWED_AI_MODULES=(
+        ai
+        ai_agents
+        ai_provider_amazeeio
+        ai_provider_anthropic
+        ai_provider_litellm
+        ai_provider_openai
+        ai_search
+    )
+fi
+
+if [ -n "${DP_AI_MODULES:-}" ]; then
+    IFS=',' read -ra REQUESTED_MODULES <<< "$DP_AI_MODULES"
+    for module in "${REQUESTED_MODULES[@]}"; do
+        module=$(echo "$module" | xargs)
+        [ -n "$module" ] || continue
+        allowed=false
+        for allowed_module in "${ALLOWED_AI_MODULES[@]}"; do
+            if [ "$module" = "$allowed_module" ]; then
+                allowed=true
+                break
+            fi
+        done
+        if [ "$allowed" = "false" ]; then
+            echo "ERROR: DP_AI_MODULES includes unsupported module: $module" >&2
+            echo "Allowed modules: ${ALLOWED_AI_MODULES[*]}" >&2
+            exit 1
+        fi
+    done
+fi
+
+# Function to validate issue version requirements.
 require_issue_version() {
     local label="$1"
     local version_var="$2"
@@ -110,12 +146,14 @@ require_issue_version() {
     fi
 }
 
+# Validate AI module and test module issue version requirements.
 require_issue_version "AI module" "DP_AI_MODULE_VERSION" "DP_AI_ISSUE_FORK" "DP_AI_ISSUE_BRANCH"
 require_issue_version "Test module" "DP_TEST_MODULE_VERSION" "DP_TEST_MODULE_ISSUE_FORK" "DP_TEST_MODULE_ISSUE_BRANCH"
 
 # Show final AI module configurations.
 echo "  AI Module Configuration:"
 echo "   - AI Base: $DP_AI_MODULE @ $DP_AI_MODULE_VERSION"
+echo "   - Force Dependencies: ${DP_FORCE_DEPENDENCIES:-0}"
 if [ -n "${DP_AI_ISSUE_BRANCH:-}" ]; then
     echo "     └─ Testing PR: $DP_AI_ISSUE_FORK/$DP_AI_ISSUE_BRANCH"
 fi

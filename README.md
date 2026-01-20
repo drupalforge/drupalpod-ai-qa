@@ -59,8 +59,13 @@ web_environment:
   - DP_TEST_MODULE_ISSUE_FORK=drupal
   - DP_TEST_MODULE_ISSUE_BRANCH=3498765-feature
   - DP_AI_MODULE_VERSION=2.0.x
+  - DP_FORCE_DEPENDENCIES=1
   - DP_REBUILD=1
 ```
+
+When using a PR fork/branch, also set a module version
+(e.g., `DP_AI_MODULE_VERSION=1.2.x`, `DP_TEST_MODULE_VERSION=1.0.7`)
+so Composer can resolve the branch.
 
 Run `ddev restart` to apply changes.
 
@@ -82,7 +87,8 @@ Run `ddev restart` to apply changes.
 | `DP_AI_MODULE_VERSION` | AI version (empty = auto-detect from test module) | Empty |
 | `DP_AI_ISSUE_FORK` | Fork name for AI PR testing | Empty |
 | `DP_AI_ISSUE_BRANCH` | Branch name for AI PR testing | Empty |
-| `DP_AI_MODULES` | Ecosystem modules to include | `ai_provider_litellm,ai_search,ai_agents` |
+| `DP_AI_MODULES` | Ecosystem modules to include (allowlisted) | `ai_provider_litellm,ai_search,ai_agents` |
+| `DP_FORCE_DEPENDENCIES` | `1` = bypass CMS/core constraints (lenient mode) | `0` |
 
 ### Test Module Settings
 
@@ -120,43 +126,49 @@ drupalpod-ai-qa/
 ├── .ddev/
 │   ├── config.yaml              # System defaults + DDEV config
 │   └── config.drupal.yaml       # User overrides (create this)
-├── .devpanel/                   # Setup scripts
+├── .devpanel/                   # Docker/build scripts + DevPanel assets
+├── scripts/                     # Setup scripts
 │   ├── init.sh                  # Main orchestrator
 │   ├── fallback_setup.sh        # Default env vars + validation
-│   ├── clone_ai_modules.sh      # Git cloning + version resolution
+│   ├── resolve_modules.sh       # Composer resolution + plan
+│   ├── clone_modules.sh         # Git cloning based on plan
 │   ├── composer_setup.sh        # Generate composer.json + path repos
-│   ├── setup_ai.sh              # Configure AI settings
-│   └── create_quickstart.sh     # Database dump for Docker images
+│   └── setup_ai.sh              # Configure AI settings
 ├── repos/                       # Git submodules (AI modules cloned here)
 ├── docroot/                     # Drupal install (generated, gitignored)
-├── tests/                       # BATS test suite
-└── logs/                        # Build logs
+├── tests/                       # BATS test suite + scenario runner
+└── logs/                        # Build logs + cache
 ```
 
 ### Script Orchestration
 
-`.devpanel/init.sh` runs these steps in order:
+`scripts/init.sh` runs these steps in order:
 
 1. **fallback_setup.sh** - Sets defaults, validates template/version combinations
-2. **clone_ai_modules.sh** - Clones AI modules, determines compatibility
-3. **custom_package_installer.sh** - Installs custom packages (if configured)
-4. **composer_setup.sh** - Creates Drupal project, adds path repositories for compatible modules
+2. **resolve_modules.sh** - Resolves module versions and writes a manifest
+3. **clone_modules.sh** - Clones AI modules defined in the manifest
+4. **composer_setup.sh** - Creates Drupal project, adds path repositories
 5. **Composer operations** - Runs `composer update`
 6. **Drupal installation** - Runs `drush site-install`
 7. **setup_ai.sh** - Configures AI settings if `DP_AI_VIRTUAL_KEY` is set
 
 ### Version Resolution
 
+`resolve_modules.sh` builds a temporary Composer project to resolve concrete
+module versions against the selected template and constraints. It writes a plan
+to `logs/ai-manifest.json` that `clone_modules.sh` uses to check out git repos.
+
 When `DP_TEST_MODULE` is set:
 
-1. Clones test module from specified branch/fork
-2. Parses `composer.json` for `drupal/ai` requirement
-3. Converts constraint to branch version (e.g., `^2.0` → `2.0.x`)
-4. Clones base AI module at that version
-5. Filters ecosystem modules for compatibility
-6. Incompatible modules are cloned but skipped from composer
+1. The test module drives compatibility for `drupal/ai`
+2. Optional ecosystem modules are skipped (so they don't block the test)
+3. The resolved plan still includes AI + the test module
 
-If `DP_AI_MODULE_VERSION` is explicitly set and conflicts with test module requirements, the build fails with an error.
+When `DP_FORCE_DEPENDENCIES=1`, resolution can bypass CMS/core constraints using
+lenient mode to allow explicit tests (e.g., AI 2.x against CMS 1.x).
+
+Resolution caches Composer artifacts and base project skeletons under `logs/cache`
+to speed up repeated runs. Remove that directory to start fresh.
 
 ### Working with Cloned Modules
 

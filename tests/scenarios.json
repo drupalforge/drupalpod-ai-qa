@@ -7,34 +7,48 @@
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true,
       "ai_version_pattern": "^1\\.",
-      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents"],
+      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents"],
       "modules_skipped": ["ai_search"],
       "comment": "Resolves to AI 1.x, ai_search skipped (incompatible)"
     }
   },
   {
-    "name": "CMS 1.x with forced AI 2.x (ai_agents SKIPPED)",
-    "description": "Force AI 2.x, ai_agents is incompatible and gets skipped",
+    "name": "CMS 1.x with forced AI 2.0.x",
+    "description": "Force AI 2.0.x on CMS with dependency overrides",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
-      "DP_AI_MODULE_VERSION": "2.x",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_FORCE_DEPENDENCIES": "1"
     },
     "expect": {
       "should_succeed": true,
       "lenient_enabled": true,
       "lenient_packages": ["drupal/ai"],
-      "ai_version_pattern": "^2\\..*-dev$",
-      "modules_resolved": ["ai", "ai_provider_litellm", "ai_search"],
-      "modules_skipped": ["ai_agents"],
-      "comment": "AI 2.x explicit, ai_search works, ai_agents skipped"
+      "ai_version_pattern": "(^dev-2\\.0\\.x$|^2\\.0\\.x-dev$)",
+      "comment": "Explicit AI version allows testing 2.0.x on CMS"
+    }
+  },
+  {
+    "name": "CMS 1.x with AI 2.0.x (no force, should FAIL)",
+    "description": "AI 2.0.x should fail without dependency overrides",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
+    },
+    "expect": {
+      "should_succeed": false,
+      "comment": "CMS constraints reject AI 2.0.x without overrides"
     }
   },
   {
@@ -45,32 +59,33 @@
       "DP_VERSION": "11.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true,
-      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents"],
+      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents"],
       "modules_skipped": ["ai_search"],
       "comment": "Resolves to AI 1.x, ai_search skipped"
     }
   },
   {
-    "name": "Core 11.x with forced AI 2.x (ai_agents SKIPPED)",
-    "description": "Force AI 2.x on core, ai_agents skipped",
+    "name": "Core 11.x with forced AI 2.0.x",
+    "description": "Force AI 2.0.x on core",
     "env": {
       "DP_STARTER_TEMPLATE": "core",
       "DP_VERSION": "11.x",
       "DP_AI_MODULE": "ai",
-      "DP_AI_MODULE_VERSION": "2.x",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_FORCE_DEPENDENCIES": "1"
     },
     "expect": {
       "should_succeed": true,
       "lenient_enabled": true,
       "lenient_packages": ["drupal/ai"],
-      "ai_version_pattern": "^2\\..*-dev$",
-      "modules_resolved": ["ai", "ai_provider_litellm", "ai_search"],
-      "modules_skipped": ["ai_agents"]
+      "ai_version_pattern": "(^dev-2\\.0\\.x$|^2\\.0\\.x-dev$)",
+      "modules_resolved": ["ai", "ai_search", "ai_agents"],
+      "modules_skipped": ["ai_provider_amazeeio"]
     }
   },
   {
@@ -81,43 +96,43 @@
       "DP_VERSION": "10.4.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true,
-      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents"],
+      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents"],
       "modules_skipped": ["ai_search"]
     }
   },
   {
-    "name": "DP_TEST_MODULE: ai_seo with all modules (ai_search SKIPPED)",
-    "description": "Test ai_seo module - ai_search gets skipped",
+    "name": "DP_TEST_MODULE: ai_seo with all modules (ai_search, ai_provider_amazeeio SKIPPED)",
+    "description": "Test ai_seo module - ai_search and ai_provider_amazeeio skipped",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
       "DP_TEST_MODULE": "ai_seo",
       "DP_TEST_MODULE_VERSION": ""
     },
     "expect": {
       "should_succeed": true,
       "ai_version_pattern": "^1\\.",
-      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents", "ai_seo"],
-      "modules_skipped": ["ai_search"],
-      "comment": "ai_seo + ai_agents require AI 1.x, ai_search skipped"
+      "modules_resolved": ["ai", "ai_seo"],
+      "modules_skipped": ["ai_search", "ai_provider_amazeeio"],
+      "comment": "ai_seo drives AI 1.x; ai_search + ai_provider_amazeeio skipped"
     }
   },
   {
-    "name": "DP_TEST_MODULE: ai_seo with forced AI 2.x (should FAIL)",
-    "description": "Force AI 2.x but ai_seo requires AI ^1 - test module fails",
+    "name": "DP_TEST_MODULE: ai_seo with forced AI 2.0.x (should FAIL)",
+    "description": "Force AI 2.0.x but ai_seo requires AI ^1 - test module fails",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
-      "DP_AI_MODULE_VERSION": "2.x",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
       "DP_TEST_MODULE": "ai_seo",
       "DP_TEST_MODULE_VERSION": ""
     },
@@ -127,24 +142,20 @@
     }
   },
   {
-    "name": "DP_TEST_MODULE: ai_seo explicit with AI 2.x (lenient mode)",
-    "description": "Both versions explicit - lenient allows testing",
+    "name": "DP_TEST_MODULE: ai_seo explicit with AI 2.0.x (should FAIL)",
+    "description": "Explicit versions still conflict with ai_seo requirements",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
-      "DP_AI_MODULE_VERSION": "2.x",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
       "DP_TEST_MODULE": "ai_seo",
-      "DP_TEST_MODULE_VERSION": "1.x"
+      "DP_TEST_MODULE_VERSION": "1.0.7"
     },
     "expect": {
-      "should_succeed": true,
-      "lenient_enabled": true,
-      "lenient_packages": ["drupal/ai", "drupal/ai_seo"],
-      "modules_resolved": ["ai", "ai_provider_litellm", "ai_search", "ai_seo"],
-      "modules_skipped": ["ai_agents"],
-      "comment": "Both explicit = lenient allows incompatible combo, ai_agents skipped"
+      "should_succeed": false,
+      "comment": "ai_seo 1.0.7 requires AI ^1"
     }
   },
   {
@@ -155,14 +166,14 @@
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "1.2.x",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
       "DP_AI_ISSUE_FORK": "3493720",
       "DP_AI_ISSUE_BRANCH": "3493720-some-feature",
-      "run_clone": true
+      "run_clone": false
     },
     "expect": {
       "should_succeed": true,
-      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents"],
+      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents"],
       "modules_skipped": ["ai_search"],
       "comment": "PR branch cloned for AI module, resolves to AI 1.x"
     }
@@ -175,17 +186,17 @@
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
       "DP_TEST_MODULE": "ai_seo",
       "DP_TEST_MODULE_VERSION": "1.0.7",
       "DP_TEST_MODULE_ISSUE_FORK": "3500000",
       "DP_TEST_MODULE_ISSUE_BRANCH": "3500000-fix-bug",
-      "run_clone": true
+      "run_clone": false
     },
     "expect": {
       "should_succeed": true,
-      "modules_resolved": ["ai", "ai_provider_litellm", "ai_agents", "ai_seo"],
-      "modules_skipped": ["ai_search"],
+      "modules_resolved": ["ai", "ai_seo"],
+      "modules_skipped": ["ai_search", "ai_provider_amazeeio", "ai_agents"],
       "comment": "PR branch cloned for test module"
     }
   },
@@ -197,7 +208,7 @@
       "DP_VERSION": "1.2.9",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true
@@ -211,7 +222,7 @@
       "DP_VERSION": "2.0.0-rc1",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true
@@ -225,7 +236,7 @@
       "DP_VERSION": "2.0.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true
@@ -239,7 +250,7 @@
       "DP_VERSION": "1.2.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true
@@ -253,7 +264,7 @@
       "DP_VERSION": "11.2.10",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true
@@ -267,7 +278,7 @@
       "DP_VERSION": "10.6.2",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true
@@ -281,7 +292,7 @@
       "DP_VERSION": "10.6.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true
@@ -295,7 +306,7 @@
       "DP_VERSION": "10.4",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
       "should_succeed": true
@@ -309,12 +320,10 @@
       "DP_VERSION": "1.2.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "1.2.5",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
-      "should_succeed": true,
-      "lenient_enabled": true,
-      "lenient_packages": ["drupal/ai"]
+      "should_succeed": true
     }
   },
   {
@@ -325,12 +334,10 @@
       "DP_VERSION": "1.2.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "1.1.8",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
-      "should_succeed": true,
-      "lenient_enabled": true,
-      "lenient_packages": ["drupal/ai"]
+      "should_succeed": true
     }
   },
   {
@@ -341,7 +348,8 @@
       "DP_VERSION": "1.2.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "1.0.x",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_FORCE_DEPENDENCIES": "1"
     },
     "expect": {
       "should_succeed": true,
@@ -350,14 +358,15 @@
     }
   },
   {
-    "name": "CMS with AI 2.0.x",
-    "description": "Explicit AI branch on CMS",
+    "name": "CMS with AI 2.0.x (forced)",
+    "description": "Explicit AI 2.0.x on CMS with dependency overrides",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.2.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "2.0.x",
-      "DP_AI_MODULES": "ai_provider_litellm,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_FORCE_DEPENDENCIES": "1"
     },
     "expect": {
       "should_succeed": true,

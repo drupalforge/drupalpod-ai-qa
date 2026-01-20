@@ -35,6 +35,41 @@ npm run test:verbose
 bats tests/integration.bats
 ```
 
+## Scenario Runner (Composer Resolution)
+
+The scenario runner executes `scripts/resolve_modules.sh` against a JSON list.
+It uses Composer and writes plans to `logs/test-{N}/ai-manifest.json`.
+
+```bash
+# Run all scenarios
+./tests/run-scenarios.sh
+
+# Run a custom scenarios file
+./tests/run-scenarios.sh tests/scenarios.json
+```
+
+Each scenario can set env vars (like `DP_VERSION`, `DP_AI_MODULE_VERSION`)
+and optional `DP_FORCE_DEPENDENCIES=1` to bypass CMS/core constraints.
+`DP_AI_MODULES` is validated against a repo allowlist; unknown modules fail fast.
+Cached Composer artifacts are stored under `logs/cache` to speed up repeats.
+Remove `logs/cache` to start fresh.
+
+Example scenario:
+```json
+{
+  "name": "CMS 1.x with forced AI 2.0.x",
+  "env": {
+    "DP_STARTER_TEMPLATE": "cms",
+    "DP_VERSION": "1.x",
+    "DP_AI_MODULE_VERSION": "2.0.x",
+    "DP_FORCE_DEPENDENCIES": "1"
+  },
+  "expect": {
+    "should_succeed": true
+  }
+}
+```
+
 ## Test Structure
 
 ### Unit Tests (Helper Functions)

@@ -1,44 +1,14 @@
-[submodule "repos/drupal"]
-	path = repos/drupal
-	url = https://git.drupalcode.org/project/drupal.git
-	ignore = dirty
 [submodule "repos/ai"]
 	path = repos/ai
-	url = https://git.drupalcode.org/project/ai.git
-	ignore = dirty
-[submodule "repos/ai_provider_litellm"]
-	path = repos/ai_provider_litellm
-	url = https://git.drupalcode.org/project/ai_provider_litellm.git
-	ignore = dirty
-[submodule "repos/ai_search"]
-	path = repos/ai_search
-	url = https://git.drupalcode.org/project/ai_search.git
-	ignore = dirty
+	url = git@git.drupalcode.org:project/ai.git
 [submodule "repos/ai_agents"]
 	path = repos/ai_agents
 	url = https://git.drupalcode.org/project/ai_agents.git
-	ignore = dirty
-[submodule "docroot/repos/ai"]
-	path = docroot/repos/ai
-	url = https://git.drupalcode.org/project/ai.git
-[submodule "docroot/repos/ai_provider_litellm"]
-	path = docroot/repos/ai_provider_litellm
-	url = https://git.drupalcode.org/project/ai_provider_litellm.git
-[submodule "docroot/repos/ai_search"]
-	path = docroot/repos/ai_search
-	url = https://git.drupalcode.org/project/ai_search.git
-[submodule "docroot/repos/ai_agents"]
-	path = docroot/repos/ai_agents
-	url = https://git.drupalcode.org/project/ai_agents.git
-[submodule "repos/ai_seo"]
-	path = repos/ai_seo
-	url = https://git.drupalcode.org/project/ai_seo.git
-	ignore = dirty
-[submodule "repos/ai_eca"]
-	path = repos/ai_eca
-	url = https://git.drupalcode.org/project/ai_eca.git
 	ignore = dirty
 [submodule "repos/ai_provider_amazeeio"]
 	path = repos/ai_provider_amazeeio
 	url = https://git.drupalcode.org/project/ai_provider_amazeeio.git
 	ignore = dirty
+[submodule "repos/ai_search"]
+	path = repos/ai_search
+	url = https://git.drupalcode.org/project/ai_search.git

@@ -2,7 +2,7 @@
 set -eu -o pipefail
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Clone AI Modules from Git (Composer-resolved plan).
+# Clone AI Modules from Git (Composer-resolved).
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Load common utilities (skip if already loaded by parent script).
@@ -33,7 +33,7 @@ clone_module() {
     # Check if the module is already cloned.
     if git submodule status repos/"$module_name" > /dev/null 2>&1; then
         echo "  ✓ Submodule exists, updating..."
-        time git submodule update --init --recursive repos/"$module_name"
+        # time git submodule update --init --recursive repos/"$module_name"
     else
         echo "  + Adding as submodule..."
         time git submodule add -f https://git.drupalcode.org/project/"$module_name".git repos/"$module_name"
@@ -42,7 +42,7 @@ clone_module() {
 
     # Navigate to module repo and fetch updates.
     cd "$PROJECT_ROOT/repos/$module_name"
-    git fetch --all --tags
+    # git fetch --all --tags
 
     # Determine checkout target: PR branch, specific version, or latest stable.
     if [ -n "$issue_branch" ] && [ -n "$issue_fork" ]; then
@@ -153,6 +153,30 @@ while read -r package version; do
 
     # Clone the module and record it as compatible for composer setup.
     clone_module "$module_name" "$git_version" "$issue_fork" "$issue_branch"
+
+    # Ensure PR branches satisfy Composer constraints while keeping git checkouts.
+    apply_branch_alias() {
+        local repo_dir=$1
+        local branch=$2
+        local alias=$3
+        local composer_json="$repo_dir/composer.json"
+
+        if [ -f "$composer_json" ]; then
+            log_info "Applying branch alias: dev-$branch -> $alias"
+            jq --arg branch "dev-$branch" \
+               --arg alias "$alias" \
+               '.extra["branch-alias"] = (.extra["branch-alias"] // {}) | .extra["branch-alias"][$branch] = $alias' \
+               "$composer_json" > "$composer_json.tmp" && mv "$composer_json.tmp" "$composer_json"
+        fi
+    }
+
+    if [ -n "$issue_branch" ]; then
+        if [ "$module_name" = "${DP_AI_MODULE}" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
+            apply_branch_alias "$PROJECT_ROOT/repos/$module_name" "$issue_branch" "${DP_AI_MODULE_VERSION}-dev"
+        elif [ "$module_name" = "${DP_TEST_MODULE:-}" ] && [ -n "${DP_TEST_MODULE_VERSION:-}" ]; then
+            apply_branch_alias "$PROJECT_ROOT/repos/$module_name" "$issue_branch" "${DP_TEST_MODULE_VERSION}-dev"
+        fi
+    fi
 
     if [ -z "$COMPATIBLE_MODULES" ]; then
         export COMPATIBLE_MODULES="$module_name"

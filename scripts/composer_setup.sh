@@ -21,8 +21,21 @@ cd "$APP_ROOT"
 STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-cms}"
 
 # Resolve composer project + version constraint in one place.
-source "$PROJECT_ROOT/scripts/lib/project_selector.sh"
-resolve_project_selection
+COMPOSER_PROJECT=""
+INSTALL_VERSION=""
+
+if [ "$STARTER_TEMPLATE" = "cms" ]; then
+    COMPOSER_PROJECT="drupal/cms"
+else
+    COMPOSER_PROJECT="drupal/recommended-project"
+fi
+
+if [ -n "${DP_VERSION:-}" ]; then
+    INSTALL_VERSION="$(normalize_version_to_composer "${DP_VERSION}")"
+fi
+
+export COMPOSER_PROJECT
+export INSTALL_VERSION
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Generate composer.json from CMS/Core template using temp directory
@@ -327,7 +340,6 @@ if [ "$STARTER_TEMPLATE" = "cms" ]; then
     # Require all CMS dependencies (Webform libraries only - AI modules come from git).
     composer require --prefer-dist -n --no-update --dev \
         cweagans/composer-patches:^2@beta \
-        drush/drush:^13.6 \
         codemirror/codemirror \
         jquery/inputmask \
         jquery/intl-tel-input \
@@ -345,9 +357,10 @@ else
     echo "Adding Core AI dependencies (lean setup for quick PR/issue testing)..."
 
     # Core variant: Search only - AI modules come from git via path repos.
+    # Core template does not include drush by default, so we add it here.
     composer require --prefer-dist -n --no-update \
+        drush/drush \
         cweagans/composer-patches:^2@beta \
-        drush/drush:^13.6 \
         drupal/search_api \
         drupal/search_api_db \
         drupal/token

@@ -16,30 +16,21 @@ if [ -z "${SCRIPT_DIR:-}" ]; then
 fi
 require_jq
 
+# Cache configuration (overridable via DP_CACHE_DIR or COMPOSER_CACHE_DIR).
+CACHE_DIR="${DP_CACHE_DIR:-$LOG_DIR/cache}"
+mkdir -p "$CACHE_DIR"
+export COMPOSER_CACHE_DIR="${COMPOSER_CACHE_DIR:-$CACHE_DIR/composer}"
+mkdir -p "$COMPOSER_CACHE_DIR"
+
+# Initialize arrays early for set -u safety in functions.
+REQUIRED_PACKAGES=()
+REQUIRED_CONSTRAINTS=()
+OPTIONAL_PACKAGES=()
+OPTIONAL_CONSTRAINTS=()
+SKIPPED_PACKAGES=()
+
 # Export manifest file location for other scripts.
 export DP_MODULE_MANIFEST="$MANIFEST_FILE"
-
-# Normalise user-friendly versions to Composer constraints.
-# Direction: user input -> Composer constraint.
-# Examples:
-#  - "" -> "*"
-#  - "1.x" -> "1.x-dev"
-#  - "1.2" -> "1.2".
-normalize_module_version() {
-    local version=${1:-}
-
-    if [ -z "$version" ]; then
-        echo "*"
-        return
-    fi
-
-    if [[ "$version" == *.x ]]; then
-        echo "${version}-dev"
-        return
-    fi
-
-    echo "$version"
-}
 
 # Convert bash args into a JSON array, to create Composer-friendly
 # lists of packages.
@@ -62,9 +53,7 @@ json_array_from_list() {
 contains_package() {
     local name=$1
     shift
-    local list=("$@")
-
-    for existing in "${list[@]}"; do
+    for existing in "$@"; do
         if [ "$existing" = "$name" ]; then
             return 0
         fi
@@ -78,7 +67,7 @@ add_required_module() {
     local name=$1
     local constraint=$2
 
-    if contains_package "$name" "${REQUIRED_PACKAGES[@]}"; then
+    if contains_package "$name" ${REQUIRED_PACKAGES[@]+"${REQUIRED_PACKAGES[@]}"}; then
         return
     fi
 
@@ -91,11 +80,11 @@ add_optional_module() {
     local name=$1
     local constraint=$2
 
-    if contains_package "$name" "${REQUIRED_PACKAGES[@]}"; then
+    if contains_package "$name" ${REQUIRED_PACKAGES[@]+"${REQUIRED_PACKAGES[@]}"}; then
         return
     fi
 
-    if contains_package "$name" "${OPTIONAL_PACKAGES[@]}"; then
+    if contains_package "$name" ${OPTIONAL_PACKAGES[@]+"${OPTIONAL_PACKAGES[@]}"}; then
         return
     fi
 
@@ -132,26 +121,87 @@ write_manifest_from_lock() {
         }' "$lock_path" > "$out_path"
 }
 
+# Create a filesystem-safe cache key from a string.
+cache_key_for() {
+    echo "$1" | tr ' /:' '___' | tr -c 'A-Za-z0-9._-' '_'
+}
+
 # Decide which base project to resolve against (CMS vs core).
 STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-cms}"
 DP_VERSION="${DP_VERSION:-}"
 
-# Determine Composer project and version constraint.
-source "$SCRIPT_DIR/lib/project_selector.sh"
-resolve_project_selection
+# Determine AI resolution base.
+# Default: follow CMS/core constraints directly.
+# When DP_FORCE_DEPENDENCIES=1 and template is CMS, resolve against core only.
+RESOLVE_PROJECT=""
+RESOLVE_VERSION=""
+FORCE_DEPENDENCIES="${DP_FORCE_DEPENDENCIES:-0}"
 
-# Track required vs optional (optional are allowed to be skipped).
-REQUIRED_PACKAGES=()
-REQUIRED_CONSTRAINTS=()
-OPTIONAL_PACKAGES=()
-OPTIONAL_CONSTRAINTS=()
-SKIPPED_PACKAGES=()
+# If forcing dependencies with CMS, resolve against core first.
+if [ "$STARTER_TEMPLATE" = "cms" ] && [ "$FORCE_DEPENDENCIES" = "1" ]; then
+    cms_install_version=""
+    cms_cache_key="latest"
+    cms_core_cache_file="$CACHE_DIR/cms-core-version.json"
+
+    # If DP_VERSION is set, normalize it for composer.
+    if [ -n "${DP_VERSION:-}" ]; then
+        cms_install_version="$(normalize_version_to_composer "${DP_VERSION}")"
+        cms_cache_key="$cms_install_version"
+    fi
+
+    # Reuse cached core version when available.
+    if [ -f "$cms_core_cache_file" ]; then
+        RESOLVE_VERSION=$(jq -r --arg key "$cms_cache_key" '.[$key] // empty' "$cms_core_cache_file")
+    fi
+
+    if [ -z "${RESOLVE_VERSION:-}" ]; then
+        # Create a temporary CMS project to extract core versions.
+        cms_tmp_dir=$(mktemp -d)
+        if [ -n "$cms_install_version" ]; then
+            composer create-project -n --no-install "drupal/cms:$cms_install_version" "$cms_tmp_dir"
+        else
+            composer create-project -n --no-install "drupal/cms" "$cms_tmp_dir"
+        fi
+
+        # Configure permissive resolution.
+        composer -d "$cms_tmp_dir" config minimum-stability dev
+        composer -d "$cms_tmp_dir" update --no-install --no-progress
+        RESOLVE_VERSION=$(jq -r '.packages[] | select(.name=="drupal/core-recommended") | .version' "$cms_tmp_dir/composer.lock" | head -1)
+        rm -rf "$cms_tmp_dir"
+
+        # Persist cache for future runs.
+        if [ -n "${RESOLVE_VERSION:-}" ]; then
+            if [ -f "$cms_core_cache_file" ]; then
+                jq --arg key "$cms_cache_key" --arg value "$RESOLVE_VERSION" '. + {($key): $value}' \
+                    "$cms_core_cache_file" > "$cms_core_cache_file.tmp"
+            else
+                jq -n --arg key "$cms_cache_key" --arg value "$RESOLVE_VERSION" '{($key): $value}' \
+                    > "$cms_core_cache_file.tmp"
+            fi
+            mv "$cms_core_cache_file.tmp" "$cms_core_cache_file"
+        fi
+    fi
+
+    RESOLVE_PROJECT="drupal/recommended-project"
+else
+    if [ "$STARTER_TEMPLATE" = "cms" ]; then
+        RESOLVE_PROJECT="drupal/cms"
+        if [ -n "${DP_VERSION:-}" ]; then
+            RESOLVE_VERSION="$(normalize_version_to_composer "${DP_VERSION}")"
+        fi
+    else
+        RESOLVE_PROJECT="drupal/recommended-project"
+        if [ -n "${DP_VERSION:-}" ]; then
+            RESOLVE_VERSION="$(normalize_version_to_composer "${DP_VERSION}")"
+        fi
+    fi
+fi
 
 # If a test module is provided, include it first so it has priority in resolution.
 # Composer will still resolve the base AI module, but the test module drives compatibility.
 if [ -n "${DP_TEST_MODULE:-}" ]; then
     test_pkg="drupal/${DP_TEST_MODULE}"
-    test_constraint="$(normalize_module_version "${DP_TEST_MODULE_VERSION:-}")"
+    test_constraint="$(normalize_version_to_composer "${DP_TEST_MODULE_VERSION:-}")"
     add_required_module "$test_pkg" "$test_constraint"
 fi
 
@@ -159,12 +209,12 @@ fi
 # If DP_AI_MODULE_VERSION is blank, we allow any compatible version.
 # If it is a branch like "1.x", it is normalized to "1.x-dev".
 base_pkg="drupal/${DP_AI_MODULE}"
-base_constraint="$(normalize_module_version "${DP_AI_MODULE_VERSION:-}")"
+base_constraint="$(normalize_version_to_composer "${DP_AI_MODULE_VERSION:-}")"
 add_required_module "$base_pkg" "$base_constraint"
 
 # Collect optional modules from DP_AI_MODULES. These are "try if possible":
 # we attempt to add them after the base AI version is resolved and skip any
-# that conflict, recording them in the final plan.
+# that conflict, recording them in the final manifest.
 if [ -n "${DP_AI_MODULES:-}" ]; then
     IFS=',' read -ra MODULES <<< "$DP_AI_MODULES"
     for module in "${MODULES[@]}"; do
@@ -184,36 +234,44 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Create the project (with or without version constraint).
-if [ -n "$INSTALL_VERSION" ]; then
-    composer create-project -n --no-install "$COMPOSER_PROJECT":"$INSTALL_VERSION" "$TMP_DIR"
+# Create or reuse a cached base project (with or without version constraint).
+base_cache_key=$(cache_key_for "${RESOLVE_PROJECT}:${RESOLVE_VERSION:-latest}")
+base_cache_dir="$CACHE_DIR/base-projects/$base_cache_key"
+if [ -d "$base_cache_dir" ]; then
+    cp -R "$base_cache_dir/." "$TMP_DIR"
 else
-    composer create-project -n --no-install "$COMPOSER_PROJECT" "$TMP_DIR"
+    if [ -n "$RESOLVE_VERSION" ]; then
+        composer create-project -n --no-install "$RESOLVE_PROJECT":"$RESOLVE_VERSION" "$TMP_DIR"
+    else
+        composer create-project -n --no-install "$RESOLVE_PROJECT" "$TMP_DIR"
+    fi
+    mkdir -p "$base_cache_dir"
+    cp -R "$TMP_DIR/." "$base_cache_dir"
 fi
 
 cd "$TMP_DIR"
 
-# Keep the resolver permissive so we can test dev branches and lenient overrides.
-composer config --no-plugins allow-plugins.mglaman/composer-drupal-lenient true
+# Keep the resolver permissive so we can test dev branches.
 composer config minimum-stability dev
 
-# Determine which packages need lenient mode to bypass CMS/core constraints.
 LENIENT_PACKAGES=()
+if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
+    # If AI version explicitly set, bypass CMS/core constraints.
+    if [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
+        LENIENT_PACKAGES+=("drupal/${DP_AI_MODULE}")
+    fi
 
-# If AI version explicitly set, bypass CMS/core constraints.
-if [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
-    LENIENT_PACKAGES+=("drupal/${DP_AI_MODULE}")
-fi
-
-# If AI version is explicit, allow the test module to bypass strict constraints.
-if [ -n "${DP_TEST_MODULE:-}" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
-    LENIENT_PACKAGES+=("drupal/${DP_TEST_MODULE}")
+    # If AI version is explicit, allow the test module to bypass strict constraints.
+    if [ -n "${DP_TEST_MODULE:-}" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
+        LENIENT_PACKAGES+=("drupal/${DP_TEST_MODULE}")
+    fi
 fi
 
 # Enable lenient mode only if needed. This allows Composer to bypass
 # strict core/CMS constraints for explicit tests.
 if [ "${#LENIENT_PACKAGES[@]}" -gt 0 ]; then
-    echo "Enabling lenient mode for: ${LENIENT_PACKAGES[*]}"
+    log_info "Enabling lenient mode for: ${LENIENT_PACKAGES[*]}"
+    composer config --no-plugins allow-plugins.mglaman/composer-drupal-lenient true
     allow_list_json=$(json_array_from_list "${LENIENT_PACKAGES[@]}")
     composer require --prefer-dist -n --no-update "mglaman/composer-drupal-lenient:^1.0"
     composer config --json extra.drupal-lenient.allowed-list "$allow_list_json"
@@ -295,4 +353,4 @@ skipped_json=$(json_array_from_list "${SKIPPED_PACKAGES[@]}")
 write_manifest_from_lock "composer.lock" "$requested_json" "$skipped_json" "$MANIFEST_FILE" "$STARTER_TEMPLATE" "$DP_VERSION"
 
 # Final output.
-echo "Resolved AI module plan written to: $MANIFEST_FILE"
+log_info "Resolved AI module plan written to: $MANIFEST_FILE"
