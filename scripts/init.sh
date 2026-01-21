@@ -67,7 +67,11 @@ if [ "${DP_REBUILD:-0}" = "1" ]; then
   if [ -d "$APP_ROOT/web/sites/default" ]; then
     chmod -R u+w "$APP_ROOT/web/sites/default" 2>/dev/null || true
   fi
-  time rm -rf docroot || echo "Note: Some files couldn't be removed (Mutagen sync active)"
+  if [ "$APP_ROOT" = "$PROJECT_ROOT" ]; then
+    echo "Note: APP_ROOT matches PROJECT_ROOT; skipping removal to avoid deleting scripts."
+  else
+    time rm -rf "$APP_ROOT" || echo "Note: Some files couldn't be removed (Mutagen sync active)"
+  fi
   echo 'Rebuild mode enabled.'
   echo
 fi
