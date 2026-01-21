@@ -154,7 +154,7 @@ while read -r package version; do
     # Clone the module and record it as compatible for composer setup.
     clone_module "$module_name" "$git_version" "$issue_fork" "$issue_branch"
 
-    # Ensure PR branches satisfy Composer constraints while keeping git checkouts.
+    # Ensure PR branches satisfy Composer constraints.
     apply_branch_alias() {
         local repo_dir=$1
         local branch=$2
@@ -163,9 +163,12 @@ while read -r package version; do
 
         if [ -f "$composer_json" ]; then
             log_info "Applying branch alias: dev-$branch -> $alias"
-            jq --arg branch "dev-$branch" \
+            jq --arg version "dev-$branch" \
+               --arg branch "dev-$branch" \
                --arg alias "$alias" \
-               '.extra["branch-alias"] = (.extra["branch-alias"] // {}) | .extra["branch-alias"][$branch] = $alias' \
+               '.version = $version
+                | .extra["branch-alias"] = (.extra["branch-alias"] // {})
+                | .extra["branch-alias"][$branch] = $alias' \
                "$composer_json" > "$composer_json.tmp" && mv "$composer_json.tmp" "$composer_json"
         fi
     }
@@ -173,8 +176,18 @@ while read -r package version; do
     if [ -n "$issue_branch" ]; then
         if [ "$module_name" = "${DP_AI_MODULE}" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
             apply_branch_alias "$PROJECT_ROOT/repos/$module_name" "$issue_branch" "${DP_AI_MODULE_VERSION}-dev"
+            if [ -z "${DP_ALIAS_MODULES:-}" ]; then
+                export DP_ALIAS_MODULES="$module_name"
+            else
+                export DP_ALIAS_MODULES="$DP_ALIAS_MODULES,$module_name"
+            fi
         elif [ "$module_name" = "${DP_TEST_MODULE:-}" ] && [ -n "${DP_TEST_MODULE_VERSION:-}" ]; then
             apply_branch_alias "$PROJECT_ROOT/repos/$module_name" "$issue_branch" "${DP_TEST_MODULE_VERSION}-dev"
+            if [ -z "${DP_ALIAS_MODULES:-}" ]; then
+                export DP_ALIAS_MODULES="$module_name"
+            else
+                export DP_ALIAS_MODULES="$DP_ALIAS_MODULES,$module_name"
+            fi
         fi
     fi
 

@@ -4,16 +4,20 @@ A build system for QA testing in the Drupal AI ecosystem.
 
 ## What This Does
 
-Creates Drupal environments (CMS or Core) with AI modules pulled directly from 
-git.drupalcode.org as submodules. Solves the problem of testing AI module PRs 
-where version compatibility between the base `drupal/ai` module and ecosystem 
-modules (ai_search, ai_provider_litellm, ai_agents, etc.) needs to be automatically 
-resolved.
+Creates Drupal environments (CMS or Core) with AI modules pulled directly from
+git.drupalcode.org as submodules. It is designed to streamline QA by letting
+you pin exact versions, test forks/branches, and validate compatibility quickly.
 
-When you test a PR for `ai_search` that requires `^2.0` of the base AI module, 
-the system clones AI at 2.0.x, then filters out ecosystem modules that only 
-support `^1.2`. All modules are git submodules with live symlinks: edit code
-and see changes immediately.
+You can drop in a fork + branch (plus version) and the system resolves a
+compatible set of AI modules automatically. If a module is incompatible, it is
+skipped so testing can proceed without manual Composer wrangling.
+
+Example: testing `ai_search` for `^2.0` will check out AI 2.0.x and skip modules
+that only support `^1.2`. All modules are git submodules with live symlinks,
+so edits are immediate.
+
+Goal: make it fast and safe to QA Drupal core/CMS + AI module combinations and
+PR branches without hand-editing constraints.
 
 ## Quick Start
 
@@ -22,12 +26,34 @@ and see changes immediately.
 git clone <repo-url>
 cd drupalpod-ai-qa
 
+# Configure DDEV overrides
+# @see "## How To Use (Quick)" below
+
 # Start DDEV
 ddev start
 
 # Access the site
 open https://drupalpod-ai-qa.ddev.site
 # Credentials: admin / admin
+```
+
+## How To Use (Quick)
+
+Create `.ddev/config.drupal.yaml` and set only what you need:
+
+```yaml
+web_environment:
+  - DP_STARTER_TEMPLATE=cms
+  - DP_AI_MODULE_VERSION=1.2.x
+  - DP_AI_ISSUE_FORK=drupal
+  - DP_AI_ISSUE_BRANCH=3512345-bugfix
+  - DP_REBUILD=1
+```
+
+Apply changes:
+
+```bash
+ddev restart
 ```
 
 ## Testing PRs
@@ -59,7 +85,7 @@ web_environment:
   - DP_TEST_MODULE_ISSUE_FORK=drupal
   - DP_TEST_MODULE_ISSUE_BRANCH=3498765-feature
   - DP_AI_MODULE_VERSION=2.0.x
-  - DP_FORCE_DEPENDENCIES=1
+  - DP_FORCE_DEPENDENCIES=1 # This is used as CMS may not be compatible with AI 2.0.x yet
   - DP_REBUILD=1
 ```
 
@@ -69,16 +95,26 @@ so Composer can resolve the branch.
 
 Run `ddev restart` to apply changes.
 
+## Docs
+
+- `docs/usage.md` — DDEV/DevPanel setup, flow, and configuration notes.
+- `docs/development.md` — developer notes and script reference.
+- `docs/testing.md` — test suite and scenario runner details.
+- `docs/troubleshooting.md` — common build and runtime issues.
+
 ## Configuration Reference
 
 ### Core Settings
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `DP_STARTER_TEMPLATE` | `cms` or `core` | `cms` |
-| `DP_VERSION` | Drupal version (e.g., `2.x`, `11.2.8`) | `2.x` for CMS, `11.2.8` for core |
-| `DP_REBUILD` | `1` = force clean rebuild | `1` |
-| `DP_INSTALL_PROFILE` | Drupal install profile | Auto-detect for CMS, `standard` for core |
+| Variable | Purpose                                                               | Default |
+|----------|-----------------------------------------------------------------------|---------|
+| `DP_STARTER_TEMPLATE` | `cms` or `core`                                                       | `cms` |
+| `DP_VERSION` | Drupal version (e.g., `2.x`, `11.2.8`)                                | `2.x` for CMS, `11.2.8` for core |
+| `DP_REBUILD` | `1` = force clean rebuild (if 0, prevents destroying project in ddev) | `1` |
+| `DP_INSTALL_PROFILE` | Drupal install profile                                                | Auto-detect for CMS, `standard` for core |
+| `DP_AI_VIRTUAL_KEY` | Enables automated AI configuration (experimental) | Empty |
+
+Note: `DP_AI_VIRTUAL_KEY` support is not fully integrated or tested yet.
 
 ### AI Module Settings
 
@@ -87,7 +123,7 @@ Run `ddev restart` to apply changes.
 | `DP_AI_MODULE_VERSION` | AI version (empty = auto-detect from test module) | Empty |
 | `DP_AI_ISSUE_FORK` | Fork name for AI PR testing | Empty |
 | `DP_AI_ISSUE_BRANCH` | Branch name for AI PR testing | Empty |
-| `DP_AI_MODULES` | Ecosystem modules to include (allowlisted) | `ai_provider_litellm,ai_search,ai_agents` |
+| `DP_AI_MODULES` | Ecosystem modules to include (allowlisted) | `ai_provider_amazeeio,ai_search,ai_agents` |
 | `DP_FORCE_DEPENDENCIES` | `1` = bypass CMS/core constraints (lenient mode) | `0` |
 
 ### Test Module Settings
@@ -103,6 +139,7 @@ Run `ddev restart` to apply changes.
 
 - **`.ddev/config.yaml`** - System defaults (don't edit)
 - **`.ddev/config.drupal.yaml`** - Your overrides (create this)
+- **`.ddev/config.drupalpod.yaml`** - DevPanel/DrupalForge overrides
 
 ## Docker Images
 
@@ -115,7 +152,7 @@ drupalforge/drupalpod-ai-qa:php-8.2-core
 drupalforge/drupalpod-ai-qa:latest  # alias for php-8.3-cms
 ```
 
-Images are built via GitHub Actions on push to `main`. Each image contains a fully installed Drupal site with AI modules pre-configured.
+Images are built via GitHub Actions on push to `1.0.x`. Each image contains a fully installed Drupal site with AI modules pre-configured.
 
 ## Technical Reference
 
@@ -137,7 +174,7 @@ drupalpod-ai-qa/
 ├── repos/                       # Git submodules (AI modules cloned here)
 ├── docroot/                     # Drupal install (generated, gitignored)
 ├── tests/                       # BATS test suite + scenario runner
-└── logs/                        # Build logs + cache
+└── logs/                        # Build logs
 ```
 
 ### Script Orchestration
@@ -167,8 +204,6 @@ When `DP_TEST_MODULE` is set:
 When `DP_FORCE_DEPENDENCIES=1`, resolution can bypass CMS/core constraints using
 lenient mode to allow explicit tests (e.g., AI 2.x against CMS 1.x).
 
-Resolution caches Composer artifacts and base project skeletons under `logs/cache`
-to speed up repeated runs. Remove that directory to start fresh.
 
 ### Working with Cloned Modules
 
@@ -180,42 +215,3 @@ cd repos/ai_search
 git checkout -b my-branch
 # Make changes - they're immediately live in Drupal
 ```
-
-## Troubleshooting
-
-**Version conflict error**
-```
-ERROR: Version Conflict
-Test module 'ai_search' requires AI 2.0.x
-But you explicitly configured DP_AI_MODULE_VERSION=1.2.x
-```
-Remove `DP_AI_MODULE_VERSION` to auto-detect, or set it to match.
-
-**Module skipped warning**
-```
-Incompatible: ai_search requires AI ^2.0, but we have AI 1.2.x
-```
-Expected behavior - the module is incompatible and correctly excluded. Still cloned to `repos/` for inspection.
-
-**Build failures**
-
-Check `logs/init-*.log` for detailed output. Common issues:
-- Git fetch failures (network/auth)
-- Composer dependency conflicts
-- Database connection problems
-
-**Debugging version detection**
-```bash
-ddev ssh
-cd repos/ai
-git describe --tags
-git branch -r --contains HEAD
-```
-
-## Running Tests
-
-```bash
-npm test
-```
-
-BATS test suite validates setup script logic without requiring full Drupal installs.

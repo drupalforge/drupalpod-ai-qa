@@ -98,6 +98,18 @@ time composer -n update --prefer-dist --no-progress || {
   composer dump-autoload
 }
 
+if [ -n "${DP_ALIAS_MODULES:-}" ]; then
+  echo
+  echo "Resetting temporary branch aliases..."
+  IFS=',' read -ra ALIAS_MODULES <<< "$DP_ALIAS_MODULES"
+  for module in "${ALIAS_MODULES[@]}"; do
+    repo="$PROJECT_ROOT/repos/$module"
+    if [ -d "$repo/.git" ]; then
+      git -C "$repo" checkout -- composer.json 2>/dev/null || true
+    fi
+  done
+fi
+
 echo 'All modules installed and ready!'
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -157,17 +169,26 @@ fi
 
 # This is mainly for tracking which versions were cloned
 # during the init process, especially during testing.
-if [ -d "$PROJECT_ROOT/repos" ]; then
+if [ -n "${COMPATIBLE_MODULES:-}" ] && [ -d "$PROJECT_ROOT/repos" ]; then
   echo
-  echo "Git status for cloned modules:"
-  for repo in "$PROJECT_ROOT"/repos/*; do
-    [ -d "$repo" ] || continue
+  echo "Git status for enabled modules:"
+  IFS=',' read -ra MODULES <<< "$COMPATIBLE_MODULES"
+  for module in "${MODULES[@]}"; do
+    repo="$PROJECT_ROOT/repos/$module"
+    if [ ! -d "$repo" ]; then
+      continue
+    fi
     if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      name="$(basename "$repo")"
+      top_level="$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null || true)"
+      if [ "$top_level" = "$repo" ]; then
+        echo
+        echo "[$module]"
+        git -C "$repo" status -sb
+        git -C "$repo" describe --tags --always --dirty
+      fi
+    else
       echo
-      echo "[$name]"
-      git -C "$repo" status -sb
-      git -C "$repo" describe --tags --always --dirty
+      echo "[WARN] $module is enabled but not a git repository at: $repo"
     fi
   done
 fi

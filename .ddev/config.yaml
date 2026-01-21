@@ -52,6 +52,10 @@ web_environment:
     - DP_AI_ISSUE_FORK=
     - DP_AI_ISSUE_BRANCH=
 
+    - # Optional: force Composer to resolve AI deps even if CMS/Core constraints block it.
+    - # This enables lenient resolution when testing explicit AI versions.
+    - DP_FORCE_DEPENDENCIES=0       # 1 = ignore CMS/Core constraints for AI deps
+
     - # ---------------------------------------------------------------------------
     - # Test any AI sub-module (ai_search, ai_agents, providers, etc.)
     - # - Setting DP_TEST_MODULE will auto-detect required base AI version if not defined

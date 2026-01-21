@@ -27,3 +27,6 @@ node_modules/
 
 # PHPStorm
 .idea/
+
+# Custom config
+.ddev/config.drupalpod.yaml

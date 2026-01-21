@@ -51,8 +51,6 @@ It uses Composer and writes plans to `logs/test-{N}/ai-manifest.json`.
 Each scenario can set env vars (like `DP_VERSION`, `DP_AI_MODULE_VERSION`)
 and optional `DP_FORCE_DEPENDENCIES=1` to bypass CMS/core constraints.
 `DP_AI_MODULES` is validated against a repo allowlist; unknown modules fail fast.
-Cached Composer artifacts are stored under `logs/cache` to speed up repeats.
-Remove `logs/cache` to start fresh.
 
 Example scenario:
 ```json

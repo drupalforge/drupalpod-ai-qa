@@ -16,12 +16,6 @@ if [ -z "${SCRIPT_DIR:-}" ]; then
 fi
 require_jq
 
-# Cache configuration (overridable via DP_CACHE_DIR or COMPOSER_CACHE_DIR).
-CACHE_DIR="${DP_CACHE_DIR:-$LOG_DIR/cache}"
-mkdir -p "$CACHE_DIR"
-export COMPOSER_CACHE_DIR="${COMPOSER_CACHE_DIR:-$CACHE_DIR/composer}"
-mkdir -p "$COMPOSER_CACHE_DIR"
-
 # Initialize arrays early for set -u safety in functions.
 REQUIRED_PACKAGES=()
 REQUIRED_CONSTRAINTS=()
@@ -121,11 +115,6 @@ write_manifest_from_lock() {
         }' "$lock_path" > "$out_path"
 }
 
-# Create a filesystem-safe cache key from a string.
-cache_key_for() {
-    echo "$1" | tr ' /:' '___' | tr -c 'A-Za-z0-9._-' '_'
-}
-
 # Decide which base project to resolve against (CMS vs core).
 STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-cms}"
 DP_VERSION="${DP_VERSION:-}"
@@ -140,47 +129,25 @@ FORCE_DEPENDENCIES="${DP_FORCE_DEPENDENCIES:-0}"
 # If forcing dependencies with CMS, resolve against core first.
 if [ "$STARTER_TEMPLATE" = "cms" ] && [ "$FORCE_DEPENDENCIES" = "1" ]; then
     cms_install_version=""
-    cms_cache_key="latest"
-    cms_core_cache_file="$CACHE_DIR/cms-core-version.json"
 
     # If DP_VERSION is set, normalize it for composer.
     if [ -n "${DP_VERSION:-}" ]; then
         cms_install_version="$(normalize_version_to_composer "${DP_VERSION}")"
-        cms_cache_key="$cms_install_version"
     fi
 
-    # Reuse cached core version when available.
-    if [ -f "$cms_core_cache_file" ]; then
-        RESOLVE_VERSION=$(jq -r --arg key "$cms_cache_key" '.[$key] // empty' "$cms_core_cache_file")
+    # Create a temporary CMS project to extract core versions.
+    cms_tmp_dir=$(mktemp -d)
+    if [ -n "$cms_install_version" ]; then
+        composer create-project -n --no-install "drupal/cms:$cms_install_version" "$cms_tmp_dir"
+    else
+        composer create-project -n --no-install "drupal/cms" "$cms_tmp_dir"
     fi
 
-    if [ -z "${RESOLVE_VERSION:-}" ]; then
-        # Create a temporary CMS project to extract core versions.
-        cms_tmp_dir=$(mktemp -d)
-        if [ -n "$cms_install_version" ]; then
-            composer create-project -n --no-install "drupal/cms:$cms_install_version" "$cms_tmp_dir"
-        else
-            composer create-project -n --no-install "drupal/cms" "$cms_tmp_dir"
-        fi
-
-        # Configure permissive resolution.
-        composer -d "$cms_tmp_dir" config minimum-stability dev
-        composer -d "$cms_tmp_dir" update --no-install --no-progress
-        RESOLVE_VERSION=$(jq -r '.packages[] | select(.name=="drupal/core-recommended") | .version' "$cms_tmp_dir/composer.lock" | head -1)
-        rm -rf "$cms_tmp_dir"
-
-        # Persist cache for future runs.
-        if [ -n "${RESOLVE_VERSION:-}" ]; then
-            if [ -f "$cms_core_cache_file" ]; then
-                jq --arg key "$cms_cache_key" --arg value "$RESOLVE_VERSION" '. + {($key): $value}' \
-                    "$cms_core_cache_file" > "$cms_core_cache_file.tmp"
-            else
-                jq -n --arg key "$cms_cache_key" --arg value "$RESOLVE_VERSION" '{($key): $value}' \
-                    > "$cms_core_cache_file.tmp"
-            fi
-            mv "$cms_core_cache_file.tmp" "$cms_core_cache_file"
-        fi
-    fi
+    # Configure permissive resolution.
+    composer -d "$cms_tmp_dir" config minimum-stability dev
+    composer -d "$cms_tmp_dir" update --no-install --no-progress
+    RESOLVE_VERSION=$(jq -r '.packages[] | select(.name=="drupal/core-recommended") | .version' "$cms_tmp_dir/composer.lock" | head -1)
+    rm -rf "$cms_tmp_dir"
 
     RESOLVE_PROJECT="drupal/recommended-project"
 else
@@ -234,19 +201,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Create or reuse a cached base project (with or without version constraint).
-base_cache_key=$(cache_key_for "${RESOLVE_PROJECT}:${RESOLVE_VERSION:-latest}")
-base_cache_dir="$CACHE_DIR/base-projects/$base_cache_key"
-if [ -d "$base_cache_dir" ]; then
-    cp -R "$base_cache_dir/." "$TMP_DIR"
+# Create the project (with or without version constraint).
+if [ -n "$RESOLVE_VERSION" ]; then
+    composer create-project -n --no-install "$RESOLVE_PROJECT":"$RESOLVE_VERSION" "$TMP_DIR"
 else
-    if [ -n "$RESOLVE_VERSION" ]; then
-        composer create-project -n --no-install "$RESOLVE_PROJECT":"$RESOLVE_VERSION" "$TMP_DIR"
-    else
-        composer create-project -n --no-install "$RESOLVE_PROJECT" "$TMP_DIR"
-    fi
-    mkdir -p "$base_cache_dir"
-    cp -R "$TMP_DIR/." "$base_cache_dir"
+    composer create-project -n --no-install "$RESOLVE_PROJECT" "$TMP_DIR"
 fi
 
 cd "$TMP_DIR"
@@ -349,7 +308,11 @@ if [ "${#OPTIONAL_PACKAGES[@]}" -gt 0 ]; then
 fi
 
 requested_json=$(json_array_from_list "${ALL_REQUESTED[@]}")
-skipped_json=$(json_array_from_list "${SKIPPED_PACKAGES[@]}")
+if [ "${#SKIPPED_PACKAGES[@]}" -gt 0 ]; then
+    skipped_json=$(json_array_from_list "${SKIPPED_PACKAGES[@]}")
+else
+    skipped_json="[]"
+fi
 write_manifest_from_lock "composer.lock" "$requested_json" "$skipped_json" "$MANIFEST_FILE" "$STARTER_TEMPLATE" "$DP_VERSION"
 
 # Final output.

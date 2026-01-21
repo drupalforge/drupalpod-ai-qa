@@ -112,10 +112,11 @@ if [ -n "${COMPATIBLE_MODULES:-}" ]; then
             continue
         fi
 
-        if [ -d "$PROJECT_ROOT/repos/$module" ]; then
+        repo_path="$PROJECT_ROOT/repos/$module"
+        if [ -d "$repo_path" ]; then
             echo "  - Adding path repository for: $module"
             composer config --no-plugins repositories."$module"-git \
-                "{\"type\": \"path\", \"url\": \"$PROJECT_ROOT/repos/$module\", \"options\": {\"symlink\": true}}"
+                "{\"type\": \"path\", \"url\": \"$repo_path\", \"options\": {\"symlink\": true}}"
 
             # Require from path (use *@dev to accept version from module's composer.json).
             composer require --prefer-dist -n --no-update "drupal/$module:*@dev"
