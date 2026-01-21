@@ -26,21 +26,6 @@ SKIPPED_PACKAGES=()
 # Export manifest file location for other scripts.
 export DP_MODULE_MANIFEST="$MANIFEST_FILE"
 
-# Convert bash args into a JSON array, to create Composer-friendly
-# lists of packages.
-# Example:
-#  - "a" "b" => ["a","b"]
-json_array_from_list() {
-    local items=("$@")
-
-    if [ "${#items[@]}" -eq 0 ]; then
-        echo "[]"
-        return
-    fi
-
-    printf '%s\n' "${items[@]}" | jq -R . | jq -s .
-}
-
 # Simple dedupe helper for package lists.
 # Check if a package name exists in a list,
 # Returns 0 if found, 1 if not.
@@ -147,6 +132,7 @@ if [ "$STARTER_TEMPLATE" = "cms" ] && [ "$FORCE_DEPENDENCIES" = "1" ]; then
     composer -d "$cms_tmp_dir" config minimum-stability dev
     composer -d "$cms_tmp_dir" update --no-install --no-progress
     RESOLVE_VERSION=$(jq -r '.packages[] | select(.name=="drupal/core-recommended") | .version' "$cms_tmp_dir/composer.lock" | head -1)
+
     rm -rf "$cms_tmp_dir"
 
     RESOLVE_PROJECT="drupal/recommended-project"
@@ -230,10 +216,7 @@ fi
 # strict core/CMS constraints for explicit tests.
 if [ "${#LENIENT_PACKAGES[@]}" -gt 0 ]; then
     log_info "Enabling lenient mode for: ${LENIENT_PACKAGES[*]}"
-    composer config --no-plugins allow-plugins.mglaman/composer-drupal-lenient true
-    allow_list_json=$(json_array_from_list "${LENIENT_PACKAGES[@]}")
-    composer require --prefer-dist -n --no-update "mglaman/composer-drupal-lenient:^1.0"
-    composer config --json extra.drupal-lenient.allowed-list "$allow_list_json"
+    configure_lenient_mode "${LENIENT_PACKAGES[@]}"
 fi
 
 # Install required packages first (AI base + test module).
@@ -307,9 +290,9 @@ if [ "${#OPTIONAL_PACKAGES[@]}" -gt 0 ]; then
     ALL_REQUESTED+=("${OPTIONAL_PACKAGES[@]}")
 fi
 
-requested_json=$(json_array_from_list "${ALL_REQUESTED[@]}")
+requested_json=$(build_json_array "${ALL_REQUESTED[@]}")
 if [ "${#SKIPPED_PACKAGES[@]}" -gt 0 ]; then
-    skipped_json=$(json_array_from_list "${SKIPPED_PACKAGES[@]}")
+    skipped_json=$(build_json_array "${SKIPPED_PACKAGES[@]}")
 else
     skipped_json="[]"
 fi

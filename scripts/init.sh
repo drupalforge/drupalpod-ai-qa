@@ -172,7 +172,13 @@ fi
 if [ -n "${COMPATIBLE_MODULES:-}" ] && [ -d "$PROJECT_ROOT/repos" ]; then
   echo
   echo "Git status for enabled modules:"
-  IFS=',' read -ra MODULES <<< "$COMPATIBLE_MODULES"
+  modules_list="$COMPATIBLE_MODULES"
+  for extra_module in "${DP_AI_MODULE:-}" "${DP_TEST_MODULE:-}"; do
+    if [ -n "$extra_module" ] && ! echo ",$modules_list," | grep -q ",${extra_module},"; then
+      modules_list="${modules_list},${extra_module}"
+    fi
+  done
+  IFS=',' read -ra MODULES <<< "$modules_list"
   for module in "${MODULES[@]}"; do
     repo="$PROJECT_ROOT/repos/$module"
     if [ ! -d "$repo" ]; then
@@ -184,7 +190,6 @@ if [ -n "${COMPATIBLE_MODULES:-}" ] && [ -d "$PROJECT_ROOT/repos" ]; then
         echo
         echo "[$module]"
         git -C "$repo" status -sb
-        git -C "$repo" describe --tags --always --dirty
       fi
     else
       echo

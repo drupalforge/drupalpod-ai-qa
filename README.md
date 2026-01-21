@@ -85,7 +85,7 @@ web_environment:
   - DP_TEST_MODULE_ISSUE_FORK=drupal
   - DP_TEST_MODULE_ISSUE_BRANCH=3498765-feature
   - DP_AI_MODULE_VERSION=2.0.x
-  - DP_FORCE_DEPENDENCIES=1 # This is used as CMS may not be compatible with AI 2.0.x yet
+  - DP_FORCE_DEPENDENCIES=1 # Uses local plugin to relax drupal/ai constraints
   - DP_REBUILD=1
 ```
 
@@ -124,7 +124,7 @@ Note: `DP_AI_VIRTUAL_KEY` support is not fully integrated or tested yet.
 | `DP_AI_ISSUE_FORK` | Fork name for AI PR testing | Empty |
 | `DP_AI_ISSUE_BRANCH` | Branch name for AI PR testing | Empty |
 | `DP_AI_MODULES` | Ecosystem modules to include (allowlisted) | `ai_provider_amazeeio,ai_search,ai_agents` |
-| `DP_FORCE_DEPENDENCIES` | `1` = bypass CMS/core constraints (lenient mode) | `0` |
+| `DP_FORCE_DEPENDENCIES` | `1` = relax drupal/ai constraints via local plugin | `0` |
 
 ### Test Module Settings
 
@@ -134,6 +134,14 @@ Note: `DP_AI_VIRTUAL_KEY` support is not fully integrated or tested yet.
 | `DP_TEST_MODULE_VERSION` | Test module version | Empty |
 | `DP_TEST_MODULE_ISSUE_FORK` | Fork name for test module PR | Empty |
 | `DP_TEST_MODULE_ISSUE_BRANCH` | Branch name for test module PR | Empty |
+
+### Local Composer Plugin
+
+When `DP_FORCE_DEPENDENCIES=1`, a local Composer plugin relaxes `drupal/ai`
+constraints so CMS + AI 2.x combinations can resolve. The plugin lives at
+`src/ai-lenient-plugin` and only runs for this project. It is inspired by
+`mglaman/composer-drupal-lenient` (see https://github.com/mglaman/composer-drupal-lenient)
+and is intentionally lightweight for now.
 
 ### Configuration Files
 
@@ -201,8 +209,8 @@ When `DP_TEST_MODULE` is set:
 2. Optional ecosystem modules are skipped (so they don't block the test)
 3. The resolved plan still includes AI + the test module
 
-When `DP_FORCE_DEPENDENCIES=1`, resolution can bypass CMS/core constraints using
-lenient mode to allow explicit tests (e.g., AI 2.x against CMS 1.x).
+When `DP_FORCE_DEPENDENCIES=1`, a local Composer plugin relaxes `drupal/ai`
+constraints so explicit tests (e.g., AI 2.x against CMS) can resolve.
 
 
 ### Working with Cloned Modules

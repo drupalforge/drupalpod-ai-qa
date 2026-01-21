@@ -62,7 +62,8 @@ The plan is written to `logs/ai-manifest.json` and drives module checkout.
 
 - If `DP_TEST_MODULE` is set, it drives AI compatibility.
 - Optional modules in `DP_AI_MODULES` are tried and skipped if incompatible.
-- `DP_FORCE_DEPENDENCIES=1` enables lenient mode to bypass CMS/core constraints.
+- `DP_FORCE_DEPENDENCIES=1` enables a local Composer plugin that relaxes
+  `drupal/ai` constraints during resolution (useful for AI 2.x on CMS).
 - When using PR branches, set the matching module version
   (e.g., `DP_AI_MODULE_VERSION=1.2.x`).
 
@@ -75,4 +76,4 @@ Common variables:
 - `DP_AI_MODULE_VERSION`: empty = auto-detect; set to force a version
 - `DP_AI_MODULES`: allowlisted extra modules (see `README.md`)
 - `DP_TEST_MODULE`: module under test (optional)
-- `DP_FORCE_DEPENDENCIES`: `1` to bypass CMS/core constraints
+- `DP_FORCE_DEPENDENCIES`: `1` to relax `drupal/ai` constraints via local plugin

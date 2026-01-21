@@ -49,7 +49,8 @@ It uses Composer and writes plans to `logs/test-{N}/ai-manifest.json`.
 ```
 
 Each scenario can set env vars (like `DP_VERSION`, `DP_AI_MODULE_VERSION`)
-and optional `DP_FORCE_DEPENDENCIES=1` to bypass CMS/core constraints.
+and optional `DP_FORCE_DEPENDENCIES=1` to relax `drupal/ai` constraints
+via the local Composer plugin.
 `DP_AI_MODULES` is validated against a repo allowlist; unknown modules fail fast.
 
 Example scenario:

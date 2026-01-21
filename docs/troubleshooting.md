@@ -9,6 +9,8 @@ But you explicitly configured DP_AI_MODULE_VERSION=1.2.x
 ```
 
 Remove `DP_AI_MODULE_VERSION` to auto-detect, or set it to match.
+If testing AI 2.x on CMS, set `DP_FORCE_DEPENDENCIES=1` so the local
+Composer plugin can relax `drupal/ai` constraints.
 
 ## Module skipped warning
 

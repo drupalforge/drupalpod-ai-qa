@@ -72,6 +72,7 @@ ALLOWED_PLUGINS=(
     "dealerdirect/phpcodesniffer-composer-installer:true"
     "phpstan/extension-installer:true"
     "mglaman/composer-drupal-lenient:true"
+    "drupalpod/ai-lenient-plugin:true"
     "php-http/discovery:true"
     "tbachert/spi:false"
     "cweagans/composer-patches:true"
@@ -89,10 +90,31 @@ composer config minimum-stability dev
 # Allow patches to fail without stopping installation.
 composer config extra.composer-exit-on-patch-failure false
 
+# If forcing dependencies, enable lenient mode so explicit AI versions can
+# bypass CMS/core constraints during the actual install.
+if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
+    LENIENT_PACKAGES=()
+    LENIENT_PACKAGES+=("drupal/${DP_AI_MODULE:-ai}")
+    if [ -n "${DP_TEST_MODULE:-}" ]; then
+        LENIENT_PACKAGES+=("drupal/${DP_TEST_MODULE}")
+    fi
+    configure_lenient_mode "${LENIENT_PACKAGES[@]}"
+fi
+
 # Scaffold settings.php.
 composer config --json extra.drupal-scaffold.file-mapping '{"[web-root]/sites/default/settings.php":{"path":"web/core/assets/scaffold/files/default.settings.php","overwrite":false}}'
 composer config scripts.post-drupal-scaffold-cmd \
     "cd web/sites/default && test -z \"\$(grep 'include \\\$devpanel_settings;' settings.php)\" && patch -Np1 -r /dev/null < $DEV_PANEL_DIR/drupal-settings.patch || :"
+
+# If forcing dependencies, enable the local AI lenient plugin.
+if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
+    plugin_path="$PROJECT_ROOT/src/ai-lenient-plugin"
+    if [ -d "$plugin_path" ]; then
+        composer config --no-plugins repositories.ai-lenient-plugin \
+            "{\"type\": \"path\", \"url\": \"$plugin_path\", \"options\": {\"symlink\": true}}"
+        composer require --prefer-dist -n --no-progress "drupalpod/ai-lenient-plugin:*@dev"
+    fi
+fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # AI MODULES FROM GIT (Path Repositories)

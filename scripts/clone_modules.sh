@@ -19,6 +19,22 @@ cd "$PROJECT_ROOT"
 export CLONED_MODULES=""
 export COMPATIBLE_MODULES=""
 
+# Override a resolved git ref with an explicit module version.
+override_git_version() {
+    local module_name=$1
+    local current_version=$2
+    local override_version=$3
+    local label=$4
+
+    if [ -n "$override_version" ]; then
+        log_info "Using ${label} for ${module_name}: ${override_version}"
+        echo "$(normalize_version_to_git_ref "$override_version")"
+        return
+    fi
+
+    echo "$current_version"
+}
+
 # Clone or update a module submodule and check out the right ref.
 clone_module() {
     local module_name=$1
@@ -43,6 +59,11 @@ clone_module() {
     # Navigate to module repo and fetch updates.
     cd "$PROJECT_ROOT/repos/$module_name"
     # git fetch --all --tags
+
+    # Ensure local composer.json edits don't block checkouts.
+    if git diff --name-only | grep -q '^composer\.json$'; then
+        git checkout -- composer.json
+    fi
 
     # Determine checkout target: PR branch, specific version, or latest stable.
     if [ -n "$issue_branch" ] && [ -n "$issue_fork" ]; then
@@ -136,6 +157,11 @@ fi
 while read -r package version; do
     module_name=$(strip_drupal_prefix "$package")
     git_version=$(normalize_composer_version_to_git "$version")
+    if [ "$module_name" = "${DP_AI_MODULE}" ]; then
+        git_version=$(override_git_version "$module_name" "$git_version" "${DP_AI_MODULE_VERSION:-}" "DP_AI_MODULE_VERSION")
+    elif [ -n "${DP_TEST_MODULE:-}" ] && [ "$module_name" = "${DP_TEST_MODULE}" ]; then
+        git_version=$(override_git_version "$module_name" "$git_version" "${DP_TEST_MODULE_VERSION:-}" "DP_TEST_MODULE_VERSION")
+    fi
 
     issue_fork=""
     issue_branch=""
@@ -175,7 +201,12 @@ while read -r package version; do
 
     if [ -n "$issue_branch" ]; then
         if [ "$module_name" = "${DP_AI_MODULE}" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
-            apply_branch_alias "$PROJECT_ROOT/repos/$module_name" "$issue_branch" "${DP_AI_MODULE_VERSION}-dev"
+            if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
+                continue
+            fi
+            alias_target="${DP_AI_MODULE_VERSION}-dev"
+
+            apply_branch_alias "$PROJECT_ROOT/repos/$module_name" "$issue_branch" "$alias_target"
             if [ -z "${DP_ALIAS_MODULES:-}" ]; then
                 export DP_ALIAS_MODULES="$module_name"
             else

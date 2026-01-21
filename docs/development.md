@@ -12,6 +12,17 @@ Key scripts live in `scripts/`:
 - `scripts/clone_modules.sh` — git checkouts based on the plan
 - `scripts/composer_setup.sh` — build composer.json + path repos
 
+## Local Composer Plugin
+
+When `DP_FORCE_DEPENDENCIES=1`, a local Composer plugin relaxes `drupal/ai`
+constraints during dependency resolution. The plugin lives at
+`src/ai-lenient-plugin` and is only used in this repository.
+
+## Git Version Overrides
+
+`scripts/clone_modules.sh` honors explicit `DP_AI_MODULE_VERSION` and
+`DP_TEST_MODULE_VERSION` by overriding the resolved git ref for those modules.
+
 DevPanel expects an init entry point at `.devpanel/init.sh`, which forwards
 to `scripts/init.sh`.
 

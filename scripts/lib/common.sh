@@ -163,3 +163,62 @@ normalize_version_to_composer() {
 
     echo "$version"
 }
+
+# Normalize user-provided version input to a git ref-like string.
+normalize_version_to_git_ref() {
+    local version=${1:-}
+
+    if [ -z "$version" ]; then
+        echo ""
+        return
+    fi
+
+    # Strip leading composer operators.
+    version="${version#^}"
+    version="${version#~}"
+
+    if [[ "$version" =~ ^[0-9]+$ ]]; then
+        echo "${version}.x"
+        return
+    fi
+
+    if [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]]; then
+        echo "${version}.x"
+        return
+    fi
+
+    echo "$version"
+}
+
+# Convert args into a JSON array string.
+# Example: "a" "b" => ["a","b"]
+build_json_array() {
+    local items=("$@")
+    local json='['
+
+    for i in "${!items[@]}"; do
+        if [ "$i" -gt 0 ]; then
+            json+=","
+        fi
+        json+="\"${items[$i]}\""
+    done
+
+    json+=']'
+    echo "$json"
+}
+
+# Enable composer-drupal-lenient with a list of allowed packages.
+configure_lenient_mode() {
+    local packages=("$@")
+
+    if [ "${#packages[@]}" -eq 0 ]; then
+        return
+    fi
+
+    local allow_list_json
+    allow_list_json=$(build_json_array "${packages[@]}")
+
+    composer config --no-plugins allow-plugins.mglaman/composer-drupal-lenient true
+    composer require --prefer-dist -n --no-update "mglaman/composer-drupal-lenient:^1.0"
+    composer config --json extra.drupal-lenient.allowed-list "$allow_list_json"
+}
