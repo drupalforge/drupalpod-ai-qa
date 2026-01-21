@@ -49,16 +49,18 @@ clone_module() {
     # Check if the module is already cloned.
     if git submodule status repos/"$module_name" > /dev/null 2>&1; then
         echo "  ✓ Submodule exists, updating..."
-        # time git submodule update --init --recursive repos/"$module_name"
     else
         echo "  + Adding as submodule..."
         time git submodule add -f https://git.drupalcode.org/project/"$module_name".git repos/"$module_name"
         time git config -f .gitmodules submodule."repos/$module_name".ignore dirty
     fi
 
+    echo "  → Syncing submodule directory..."
+    time git submodule update --init --recursive repos/"$module_name"
+
     # Navigate to module repo and fetch updates.
     cd "$PROJECT_ROOT/repos/$module_name"
-    #git fetch --all --tags --prune
+    git fetch --all --tags --prune
 
     # Ensure local composer.json edits don't block checkouts.
     if git diff --name-only | grep -q '^composer\.json$'; then

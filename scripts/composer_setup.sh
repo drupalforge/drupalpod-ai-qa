@@ -104,7 +104,7 @@ fi
 # Scaffold settings.php.
 composer config --json extra.drupal-scaffold.file-mapping '{"[web-root]/sites/default/settings.php":{"path":"web/core/assets/scaffold/files/default.settings.php","overwrite":false}}'
 composer config scripts.post-drupal-scaffold-cmd \
-    "cd web/sites/default && test -z \"\$(grep 'include \\\$devpanel_settings;' settings.php)\" && patch -Np1 -r /dev/null < $DEV_PANEL_DIR/drupal-settings.patch || :"
+    "cd web/sites/default && test -z \"\$(grep 'include \\\$devpanel_settings;' settings.php)\" && patch -Np1 -r /dev/null < $APP_ROOT/.devpanel/drupal-settings.patch || :"
 
 # If forcing dependencies, enable the local AI lenient plugin.
 if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then

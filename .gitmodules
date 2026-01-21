@@ -1,6 +1,7 @@
 [submodule "repos/ai"]
 	path = repos/ai
-	url = git@git.drupalcode.org:project/ai.git
+	url = https://git.drupalcode.org/project/ai.git
+	ignore = dirty
 [submodule "repos/ai_agents"]
 	path = repos/ai_agents
 	url = https://git.drupalcode.org/project/ai_agents.git
@@ -12,3 +13,4 @@
 [submodule "repos/ai_search"]
 	path = repos/ai_search
 	url = https://git.drupalcode.org/project/ai_search.git
+	ignore = dirty

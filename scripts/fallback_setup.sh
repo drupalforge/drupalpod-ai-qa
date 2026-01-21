@@ -86,33 +86,26 @@ export DP_TEST_MODULE_VERSION=${DP_TEST_MODULE_VERSION:-''}
 export DP_TEST_MODULE_ISSUE_FORK=${DP_TEST_MODULE_ISSUE_FORK:-''}
 export DP_TEST_MODULE_ISSUE_BRANCH=${DP_TEST_MODULE_ISSUE_BRANCH:-''}
 
-# Validate optional AI module list against an allowlist to avoid pulling
+# Validate optional AI module list against a fixed allowlist to avoid pulling
 # unexpected packages from Composer.
-ALLOWED_AI_MODULES=()
-if [ -n "${PROJECT_ROOT:-}" ] && [ -d "$PROJECT_ROOT/repos" ]; then
-    while IFS= read -r -d '' repo_dir; do
-        ALLOWED_AI_MODULES+=("$(basename "$repo_dir")")
-    done < <(find "$PROJECT_ROOT/repos" -mindepth 1 -maxdepth 1 -type d -print0)
-fi
-
-# Fallback allowlist for environments without repos checked out yet.
-if [ "${#ALLOWED_AI_MODULES[@]}" -eq 0 ]; then
-    ALLOWED_AI_MODULES=(
-        ai
-        ai_agents
-        ai_provider_amazeeio
-        ai_provider_anthropic
-        ai_provider_litellm
-        ai_provider_openai
-        ai_search
-    )
-fi
+ALLOWED_AI_MODULES=(
+    ai
+    ai_agents
+    ai_provider_amazeeio
+    ai_provider_anthropic
+    ai_provider_litellm
+    ai_provider_openai
+    ai_search
+)
 
 if [ -n "${DP_AI_MODULES:-}" ]; then
     IFS=',' read -ra REQUESTED_MODULES <<< "$DP_AI_MODULES"
     for module in "${REQUESTED_MODULES[@]}"; do
         module=$(echo "$module" | xargs)
         [ -n "$module" ] || continue
+        if [ -n "${DP_TEST_MODULE:-}" ] && [ "$module" = "$DP_TEST_MODULE" ]; then
+            continue
+        fi
         allowed=false
         for allowed_module in "${ALLOWED_AI_MODULES[@]}"; do
             if [ "$module" = "$allowed_module" ]; then
