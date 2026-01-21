@@ -22,11 +22,12 @@ echo -e "-------------------------------\n"
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Directory Setup (works in both DDEV and GitHub Actions environments)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# APP_ROOT and WEB_ROOT are set by environment (DDEV or GitHub Actions)
-DRUSH="$APP_ROOT/vendor/bin/drush"
+# APP_ROOT and COMPOSER_ROOT are set by environment (DDEV or GitHub Actions)
+: "${COMPOSER_ROOT:=${APP_ROOT}/docroot}"
+DRUSH="$COMPOSER_ROOT/vendor/bin/drush"
 
 # Preparing
-WORK_DIR=$APP_ROOT
+WORK_DIR=$COMPOSER_ROOT
 TMP_DIR=/tmp/devpanel/quickstart
 DUMPS_DIR=$TMP_DIR/dumps
 STATIC_FILES_DIR=$WEB_ROOT/sites/default/files
@@ -35,8 +36,8 @@ mkdir -p $DUMPS_DIR
 
 # Step 1 - Compress drupal database
 cd $WORK_DIR
-echo -e "> Export database to $APP_ROOT/.devpanel/dumps"
-mkdir -p $APP_ROOT/.devpanel/dumps
+echo -e "> Export database to $COMPOSER_ROOT/.devpanel/dumps"
+mkdir -p $COMPOSER_ROOT/.devpanel/dumps
 $DRUSH cr --quiet
 $DRUSH sql-dump --result-file=../.devpanel/dumps/db.sql --gzip --extra-dump=--no-tablespaces
 
@@ -45,6 +46,6 @@ cd $WORK_DIR
 echo -e "> Compress static files"
 tar czf $DUMPS_DIR/files.tgz -C $STATIC_FILES_DIR .
 
-echo -e "> Store files.tgz to $APP_ROOT/.devpanel/dumps"
-mkdir -p $APP_ROOT/.devpanel/dumps
-mv $DUMPS_DIR/files.tgz $APP_ROOT/.devpanel/dumps/files.tgz
+echo -e "> Store files.tgz to $COMPOSER_ROOT/.devpanel/dumps"
+mkdir -p $COMPOSER_ROOT/.devpanel/dumps
+mv $DUMPS_DIR/files.tgz $COMPOSER_ROOT/.devpanel/dumps/files.tgz

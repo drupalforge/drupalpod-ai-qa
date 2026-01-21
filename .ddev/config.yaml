@@ -19,7 +19,8 @@ use_dns_when_possible: true
 composer_version: "2"
 web_environment:
     # Set up DevPanel variables. DO NOT CHANGE
-    - APP_ROOT=$DDEV_COMPOSER_ROOT
+    - APP_ROOT=$DDEV_APPROOT
+    - COMPOSER_ROOT=$DDEV_COMPOSER_ROOT
     - WEB_ROOT=$DDEV_APPROOT/$DDEV_DOCROOT
     - DB_HOST=db
     - DB_PORT=3306

@@ -2,7 +2,7 @@ name: Docker build and push template
 on:
   push:
     branches:
-      - 1.0.x
+      - resolve-approots
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

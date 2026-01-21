@@ -31,7 +31,8 @@ ddev restart
 Alternatively, you can spin up a machine with DrupalForge at https://www.drupalforge.org/drupalpod,
 using parameters:
 ```yaml
-DP_APP_ROOT=/var/www/html/docroot
+APP_ROOT=/var/www/html
+COMPOSER_ROOT=/var/www/html/docroot
 DP_WEB_ROOT=/var/www/html/docroot/web
 DP_REPO_BRANCH=https://github.com/drupalforge/drupalpod-ai-qa/tree/1.0.x
 DP_IMAGE=drupalforge/drupalpod-ai-qa:php-8.3-[DP_STARTER_TEMPLATE]

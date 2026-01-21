@@ -14,7 +14,7 @@ if [ -z "${SCRIPT_DIR:-}" ]; then
     init_common
 fi
 
-cd "$APP_ROOT"
+cd "$COMPOSER_ROOT"
 
 # Determine which starter template to use.
 # Options: "cms" or "core"

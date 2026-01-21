@@ -18,8 +18,9 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Directory Setup (works in both DDEV and GitHub Actions environments)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# APP_ROOT and WEB_ROOT are set by environment (DDEV or GitHub Actions)
-DRUSH="$APP_ROOT/vendor/bin/drush"
+# APP_ROOT and COMPOSER_ROOT are set by environment (DDEV or GitHub Actions)
+: "${COMPOSER_ROOT:=${APP_ROOT}/docroot}"
+DRUSH="$COMPOSER_ROOT/vendor/bin/drush"
 STATIC_FILES_PATH="$WEB_ROOT/sites/default/files/"
 SETTINGS_FILES_PATH="$WEB_ROOT/sites/default/settings.php"
 
@@ -30,14 +31,14 @@ fi
 
 
 #== Composer install.
-if [[ -f "$APP_ROOT/composer.json" ]]; then
-  cd $APP_ROOT && composer install
+if [[ -f "$COMPOSER_ROOT/composer.json" ]]; then
+  cd $COMPOSER_ROOT && composer install
 fi
 
 #== Generate hash salt
 echo 'Generate hash salt ...'
 DRUPAL_HASH_SALT=$(openssl rand -hex 32);
-echo $DRUPAL_HASH_SALT > $APP_ROOT/.devpanel/salt.txt
+echo $DRUPAL_HASH_SALT > $COMPOSER_ROOT/.devpanel/salt.txt
 
 
 # Securing file permissions and ownership
@@ -46,16 +47,16 @@ echo $DRUPAL_HASH_SALT > $APP_ROOT/.devpanel/salt.txt
 
 #== Extract static files
 if [[ $(mysql -h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PASSWORD $DB_NAME -e "show tables;") == '' ]]; then
-  if [[ -f "$APP_ROOT/.devpanel/dumps/files.tgz" ]]; then
+  if [[ -f "$COMPOSER_ROOT/.devpanel/dumps/files.tgz" ]]; then
     echo  'Extract static files ...'
     sudo mkdir -p $STATIC_FILES_PATH
-    sudo tar xzf "$APP_ROOT/.devpanel/dumps/files.tgz" -C $STATIC_FILES_PATH
-    sudo rm -rf $APP_ROOT/.devpanel/dumps/files.tgz
+    sudo tar xzf "$COMPOSER_ROOT/.devpanel/dumps/files.tgz" -C $STATIC_FILES_PATH
+    sudo rm -rf $COMPOSER_ROOT/.devpanel/dumps/files.tgz
   fi
 
   #== Import mysql files
-  if [[ -f "$APP_ROOT/.devpanel/dumps/db.sql.gz" ]]; then
+  if [[ -f "$COMPOSER_ROOT/.devpanel/dumps/db.sql.gz" ]]; then
     echo  'Import mysql file ...'
-    "$DRUSH" sqlq --file="$APP_ROOT/.devpanel/dumps/db.sql.gz" --file-delete
+    "$DRUSH" sqlq --file="$COMPOSER_ROOT/.devpanel/dumps/db.sql.gz" --file-delete
   fi
 fi

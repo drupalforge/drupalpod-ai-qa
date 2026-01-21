@@ -12,6 +12,11 @@ Key scripts live in `scripts/`:
 - `scripts/clone_modules.sh` — git checkouts based on the plan
 - `scripts/composer_setup.sh` — build composer.json + path repos
 
+## Root Paths
+
+- `APP_ROOT` points to the repo root.
+- `COMPOSER_ROOT` points to the Drupal composer root (`$APP_ROOT/docroot`).
+
 ## Local Composer Plugin
 
 When `DP_FORCE_DEPENDENCIES=1`, a local Composer plugin relaxes `drupal/ai`

@@ -18,14 +18,15 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Directory Setup (works in both DDEV and GitHub Actions environments)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# APP_ROOT is set by environment (DDEV or GitHub Actions) to the composer root
-DRUSH="$APP_ROOT/vendor/bin/drush"
+# APP_ROOT and COMPOSER_ROOT are set by environment (DDEV or GitHub Actions)
+: "${COMPOSER_ROOT:=${APP_ROOT}/docroot}"
+DRUSH="$COMPOSER_ROOT/vendor/bin/drush"
 
 #== Import database
 if [[ $(mysql -h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PASSWORD $DB_NAME -e "show tables;") == '' ]]; then
-  if [[ -f "$APP_ROOT/.devpanel/dumps/db.sql.gz" ]]; then
+  if [[ -f "$COMPOSER_ROOT/.devpanel/dumps/db.sql.gz" ]]; then
     echo  'Import mysql file ...'
-    $DRUSH sqlq --file="$APP_ROOT/.devpanel/dumps/db.sql.gz" --file-delete
+    $DRUSH sqlq --file="$COMPOSER_ROOT/.devpanel/dumps/db.sql.gz" --file-delete
   fi
 fi
 
@@ -33,7 +34,7 @@ if [[ -n "$DB_SYNC_VOL" ]]; then
   if [[ ! -f "/var/www/build/.devpanel/init-container.sh" ]]; then
     echo  'Sync volume...'
     sudo chown -R 1000:1000 /var/www/build
-    rsync -av --delete --delete-excluded $APP_ROOT/ /var/www/build
+    rsync -av --delete --delete-excluded $COMPOSER_ROOT/ /var/www/build
   fi
 fi
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
-cd "${APP_ROOT}"
+: "${COMPOSER_ROOT:=${APP_ROOT}/docroot}"
+cd "${COMPOSER_ROOT}"
 
 # Initialize all variables with null if they do not exist
 : "${DEBUG_SCRIPT:=}"
@@ -38,7 +39,7 @@ if [ "$DP_PROJECT_TYPE" == "project_core" ]; then
     # Get the major version of 'drush/drush'
     drush_major_version=$(composer show drush/drush --no-ansi | awk '/versions/ {print $NF}' | cut -d '.' -f1)
 
-    drush_command_dir="$APP_ROOT/drush/Commands/core_development"
+    drush_command_dir="$COMPOSER_ROOT/drush/Commands/core_development"
     mkdir -p "$drush_command_dir"
 
     # Copy the correct version of DevelopmentProjectCommands.php file to the drush commands directory

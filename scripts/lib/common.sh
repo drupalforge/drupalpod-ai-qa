@@ -4,8 +4,8 @@
 
 set -eu -o pipefail
 
-# Initialize common paths and environment variables.
-# This should be called after SCRIPT_DIR is set by the calling script.
+    # Initialize common paths and environment variables.
+    # This should be called after SCRIPT_DIR is set by the calling script.
 # IMPORTANT: SCRIPT_DIR must be set before calling this function.
 init_common() {
     if [ -z "${SCRIPT_DIR:-}" ]; then
@@ -19,13 +19,15 @@ init_common() {
     fi
 
     export PROJECT_ROOT="$project_root"
-    export APP_ROOT="${APP_ROOT:-$PROJECT_ROOT/docroot}"
-    if [ "$APP_ROOT" = "$PROJECT_ROOT" ] && [ -d "$PROJECT_ROOT/docroot" ]; then
-        export APP_ROOT="$PROJECT_ROOT/docroot"
+    export APP_ROOT="${APP_ROOT:-${DP_APP_ROOT:-$PROJECT_ROOT}}"
+    export COMPOSER_ROOT="${COMPOSER_ROOT:-${DP_COMPOSER_ROOT:-${DP_APP_ROOT:-$APP_ROOT/docroot}}}"
+    export WEB_ROOT="${WEB_ROOT:-${DP_WEB_ROOT:-$COMPOSER_ROOT/web}}"
+    if [ "$COMPOSER_ROOT" = "$APP_ROOT" ] && [ -d "$APP_ROOT/docroot" ]; then
+        export COMPOSER_ROOT="$APP_ROOT/docroot"
     fi
     export DEV_PANEL_DIR="$PROJECT_ROOT/.devpanel"
     export LOG_DIR="$PROJECT_ROOT/logs"
-    export DRUSH="$APP_ROOT/vendor/bin/drush"
+    export DRUSH="$COMPOSER_ROOT/vendor/bin/drush"
     export MANIFEST_FILE="${DP_MODULE_MANIFEST:-$LOG_DIR/ai-manifest.json}"
 
     # Create log directory if it doesn't exist.

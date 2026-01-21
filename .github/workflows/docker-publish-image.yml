@@ -26,7 +26,8 @@ jobs:
         image: ${{ inputs.webserver_image }}
         env:
           DP_APP_ID: 'drupalpod'
-          APP_ROOT: '/var/www/html/docroot'
+          APP_ROOT: '/var/www/html'
+          COMPOSER_ROOT: '/var/www/html/docroot'
           WEB_ROOT: '/var/www/html/docroot/web'
           CODES_USER_DATA_DIR: '/var/www/html/.vscode'
           CODES_WORKING_DIR: '/var/www/html'
