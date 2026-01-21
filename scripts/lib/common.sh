@@ -13,8 +13,16 @@ init_common() {
         exit 1
     fi
 
-    export PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+    project_root="$(cd "$SCRIPT_DIR/.." && pwd)"
+    if [ "$(basename "$project_root")" = "docroot" ] && [ -d "$project_root/../scripts" ]; then
+        project_root="$(cd "$project_root/.." && pwd)"
+    fi
+
+    export PROJECT_ROOT="$project_root"
     export APP_ROOT="${APP_ROOT:-$PROJECT_ROOT/docroot}"
+    if [ "$APP_ROOT" = "$PROJECT_ROOT" ] && [ -d "$PROJECT_ROOT/docroot" ]; then
+        export APP_ROOT="$PROJECT_ROOT/docroot"
+    fi
     export DEV_PANEL_DIR="$PROJECT_ROOT/.devpanel"
     export LOG_DIR="$PROJECT_ROOT/logs"
     export DRUSH="$APP_ROOT/vendor/bin/drush"
