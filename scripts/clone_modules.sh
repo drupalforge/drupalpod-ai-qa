@@ -65,8 +65,8 @@ clone_module() {
 
     # Navigate to module repo and fetch updates.
     cd "$PROJECT_ROOT/repos/$module_name"
-    if ! git fetch --all --tags --prune; then
-        log_warn "git fetch failed (auth or network). Continuing with existing refs."
+    if ! git fetch origin --tags --prune; then
+        log_warn "git fetch origin failed (auth or network). Continuing with existing refs."
     fi
 
     # Validate that both issue branch and fork are provided together.
@@ -202,7 +202,7 @@ while read -r package version; do
         local composer_json="$repo_dir/composer.json"
 
         if [ -f "$composer_json" ]; then
-            log_info "Applying branch alias: dev-$branch -> $alias"
+            log_info "Applying branch alias for constraint checks: dev-$branch -> $alias"
             jq --arg version "dev-$branch" \
                --arg branch "dev-$branch" \
                --arg alias "$alias" \
