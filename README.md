@@ -89,9 +89,9 @@ web_environment:
   - DP_REBUILD=1
 ```
 
-When using a PR fork/branch, also set a module version
-(e.g., `DP_AI_MODULE_VERSION=1.2.x`, `DP_TEST_MODULE_VERSION=1.0.7`)
-so Composer can resolve the branch.
+When using a PR fork/branch, you must set both fork + branch and a module
+version (e.g., `DP_AI_MODULE_VERSION=1.2.x`, `DP_TEST_MODULE_VERSION=1.0.7`)
+so Composer can resolve the branch. Missing versions/branches hard-fail.
 
 Run `ddev restart` to apply changes.
 
@@ -121,8 +121,8 @@ Note: `DP_AI_VIRTUAL_KEY` support is not fully integrated or tested yet.
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `DP_AI_MODULE_VERSION` | AI version (empty = auto-detect from test module) | Empty |
-| `DP_AI_ISSUE_FORK` | Fork name for AI PR testing | Empty |
-| `DP_AI_ISSUE_BRANCH` | Branch name for AI PR testing | Empty |
+| `DP_AI_ISSUE_FORK` | Fork name for AI PR testing (requires branch) | Empty |
+| `DP_AI_ISSUE_BRANCH` | Branch name for AI PR testing (requires fork) | Empty |
 | `DP_AI_MODULES` | Ecosystem modules to include (allowlisted) | `ai_provider_amazeeio,ai_search,ai_agents` |
 | `DP_FORCE_DEPENDENCIES` | `1` = relax drupal/ai constraints via local plugin | `0` |
 
@@ -132,8 +132,8 @@ Note: `DP_AI_VIRTUAL_KEY` support is not fully integrated or tested yet.
 |----------|---------|---------|
 | `DP_TEST_MODULE` | Module being tested (drives version resolution) | Empty |
 | `DP_TEST_MODULE_VERSION` | Test module version | Empty |
-| `DP_TEST_MODULE_ISSUE_FORK` | Fork name for test module PR | Empty |
-| `DP_TEST_MODULE_ISSUE_BRANCH` | Branch name for test module PR | Empty |
+| `DP_TEST_MODULE_ISSUE_FORK` | Fork name for test module PR (requires branch) | Empty |
+| `DP_TEST_MODULE_ISSUE_BRANCH` | Branch name for test module PR (requires fork) | Empty |
 
 ### Local Composer Plugin
 

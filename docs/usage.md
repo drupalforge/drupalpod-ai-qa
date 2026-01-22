@@ -65,8 +65,9 @@ The plan is written to `logs/ai-manifest.json` and drives module checkout.
 - Optional modules in `DP_AI_MODULES` are tried and skipped if incompatible.
 - `DP_FORCE_DEPENDENCIES=1` enables a local Composer plugin that relaxes
   `drupal/ai` constraints during resolution (useful for AI 2.x on CMS).
-- When using PR branches, set the matching module version
-  (e.g., `DP_AI_MODULE_VERSION=1.2.x`).
+- When using PR branches, set both fork + branch and a matching module version
+  (e.g., `DP_AI_ISSUE_FORK=drupal`, `DP_AI_ISSUE_BRANCH=3512345-bugfix`,
+  `DP_AI_MODULE_VERSION=1.2.x`). Missing versions/branches now hard-fail.
 
 ## Configuration Variables
 

@@ -19,6 +19,10 @@ cd "$COMPOSER_ROOT"
 # Determine which starter template to use.
 # Options: "cms" or "core"
 STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-cms}"
+if [ "$STARTER_TEMPLATE" != "cms" ] && [ "$STARTER_TEMPLATE" != "core" ]; then
+    echo "ERROR: Unsupported DP_STARTER_TEMPLATE: $STARTER_TEMPLATE (expected cms or core)." >&2
+    exit 1
+fi
 
 # Resolve composer project + version constraint in one place.
 COMPOSER_PROJECT=""

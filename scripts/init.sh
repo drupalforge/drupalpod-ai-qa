@@ -193,6 +193,8 @@ if [ -n "${COMPATIBLE_MODULES:-}" ] && [ -d "$PROJECT_ROOT/repos" ]; then
       if [ "$top_level" = "$repo" ]; then
         echo
         echo "[$module]"
+        version_ref=$(git -C "$repo" describe --tags --always --dirty 2>/dev/null || git -C "$repo" rev-parse --short HEAD)
+        echo "Git ref: $version_ref"
         git -C "$repo" status -sb
       fi
     else

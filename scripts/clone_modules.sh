@@ -49,22 +49,37 @@ clone_module() {
     # Check if the module is already cloned.
     if git submodule status repos/"$module_name" > /dev/null 2>&1; then
         echo "  ✓ Submodule exists, updating..."
+         # Ensure local composer.json edits don't block checkouts.
+        if ! git -C "$PROJECT_ROOT/repos/$module_name" diff --quiet -- composer.json; then
+            git -C "$PROJECT_ROOT/repos/$module_name" checkout -- composer.json
+        fi
     else
         echo "  + Adding as submodule..."
         time git submodule add -f https://git.drupalcode.org/project/"$module_name".git repos/"$module_name"
         time git config -f .gitmodules submodule."repos/$module_name".ignore dirty
     fi
 
+    # Sync the submodule to ensure it's initialized.
     echo "  → Syncing submodule directory..."
     time git submodule update --init --recursive repos/"$module_name"
 
     # Navigate to module repo and fetch updates.
     cd "$PROJECT_ROOT/repos/$module_name"
-    git fetch --all --tags --prune
+    if ! git fetch --all --tags --prune; then
+        log_warn "git fetch failed (auth or network). Continuing with existing refs."
+    fi
 
-    # Ensure local composer.json edits don't block checkouts.
-    if git diff --name-only | grep -q '^composer\.json$'; then
-        git checkout -- composer.json
+    # Validate that both issue branch and fork are provided together.
+    if [ -n "$issue_branch" ] && [ -z "$issue_fork" ]; then
+        echo "ERROR: Issue branch specified for $module_name ($issue_branch) but no fork provided." >&2
+        echo "Set DP_AI_ISSUE_FORK or DP_TEST_MODULE_ISSUE_FORK." >&2
+        exit 1
+    fi
+
+    if [ -n "$issue_fork" ] && [ -z "$issue_branch" ]; then
+        echo "ERROR: Fork specified for $module_name ($issue_fork) but no issue branch provided." >&2
+        echo "Set DP_AI_ISSUE_BRANCH or DP_TEST_MODULE_ISSUE_BRANCH." >&2
+        exit 1
     fi
 
     # Determine checkout target: PR branch, specific version, or latest stable.
@@ -75,6 +90,10 @@ clone_module() {
         else
             git remote add issue-"$issue_fork" https://git.drupalcode.org/issue/"$issue_fork".git 2>/dev/null || true
             git fetch issue-"$issue_fork"
+            if ! git show-ref --verify --quiet refs/remotes/issue-"$issue_fork"/"$issue_branch"; then
+                echo "ERROR: Branch $issue_branch not found on fork $issue_fork." >&2
+                exit 1
+            fi
             git checkout -b "$issue_branch" --track issue-"$issue_fork"/"$issue_branch"
         fi
     elif [ -n "$module_version" ]; then
@@ -83,11 +102,8 @@ clone_module() {
             if git show-ref --verify --quiet refs/remotes/origin/"$module_version"; then
                 git checkout -B "$module_version" origin/"$module_version"
             else
-                echo "  ⚠️ Branch $module_version not found, using latest stable"
-                latest_tag=$(git tag --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
-                if [ -n "$latest_tag" ]; then
-                    git checkout tags/"$latest_tag"
-                fi
+                echo "ERROR: Branch $module_version not found on origin." >&2
+                exit 1
             fi
         else
             if git rev-parse tags/"$module_version" >/dev/null 2>&1; then
@@ -95,11 +111,8 @@ clone_module() {
             elif git show-ref --verify --quiet refs/remotes/origin/"$module_version"; then
                 git checkout -B "$module_version" origin/"$module_version"
             else
-                echo "  ⚠️ Version $module_version not found, using latest stable"
-                latest_tag=$(git tag --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
-                if [ -n "$latest_tag" ]; then
-                    git checkout tags/"$latest_tag"
-                fi
+                echo "ERROR: Version $module_version not found on origin." >&2
+                exit 1
             fi
         fi
     else
