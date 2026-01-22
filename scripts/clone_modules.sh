@@ -85,17 +85,16 @@ clone_module() {
     # Determine checkout target: PR branch, specific version, or latest stable.
     if [ -n "$issue_branch" ] && [ -n "$issue_fork" ]; then
         echo "  → Checking out PR: $issue_fork/$issue_branch"
-        if git show-ref -q --heads "$issue_branch"; then
-            git checkout "$issue_branch"
-        else
-            git remote add issue-"$issue_fork" https://git.drupalcode.org/issue/"$issue_fork".git 2>/dev/null || true
-            git fetch issue-"$issue_fork"
-            if ! git show-ref --verify --quiet refs/remotes/issue-"$issue_fork"/"$issue_branch"; then
-                echo "ERROR: Branch $issue_branch not found on fork $issue_fork." >&2
-                exit 1
-            fi
-            git checkout -b "$issue_branch" --track issue-"$issue_fork"/"$issue_branch"
+        git remote add issue-"$issue_fork" https://git.drupalcode.org/issue/"$issue_fork".git 2>/dev/null || true
+        if ! git fetch issue-"$issue_fork"; then
+            log_warn "git fetch failed for issue-$issue_fork. Continuing with existing refs."
         fi
+        if ! git show-ref --verify --quiet refs/remotes/issue-"$issue_fork"/"$issue_branch"; then
+            echo "ERROR: Branch $issue_branch not found on fork $issue_fork." >&2
+            exit 1
+        fi
+        git checkout -B "$issue_branch" issue-"$issue_fork"/"$issue_branch"
+        git branch --set-upstream-to=issue-"$issue_fork"/"$issue_branch" "$issue_branch" >/dev/null 2>&1 || true
     elif [ -n "$module_version" ]; then
         echo "  → Checking out version: $module_version"
         if [[ "$module_version" == *.x ]]; then
