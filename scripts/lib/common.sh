@@ -37,15 +37,15 @@ init_common() {
 # Logging helpers (set NO_COLOR=1 to disable).
 # Logging helpers.
 log_info() {
-    printf "[DP] %s\n" "$*"
+    printf "[DP] %s\n" "$*" >&2
 }
 
 log_warn() {
-    printf "[DP] %s\n" "$*"
+    printf "[DP] %s\n" "$*" >&2
 }
 
 log_error() {
-    printf "[DP] %s\n" "$*"
+    printf "[DP] %s\n" "$*" >&2
 }
 
 # Check for jq dependency.
