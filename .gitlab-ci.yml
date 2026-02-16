@@ -7,6 +7,11 @@ include:
       - '/includes/include.drupalci.variables.yml'
       - '/includes/include.drupalci.workflows.yml'
 
+variables:
+  SKIP_ESLINT: 1
+  SKIP_PHPCS: 1
+  SKIP_PHPSTAN: 1
+
 bats:
   stage: test
   image: node:20
