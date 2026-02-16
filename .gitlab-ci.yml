@@ -10,6 +10,9 @@ include:
 bats:
   stage: test
   image: node:20
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends jq
   script:
     - npm ci
     - npm test
