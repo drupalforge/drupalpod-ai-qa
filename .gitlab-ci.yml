@@ -7,9 +7,6 @@ include:
       - '/includes/include.drupalci.variables.yml'
       - '/includes/include.drupalci.workflows.yml'
 
-stages:
-  - test
-
 bats:
   stage: test
   image: node:20
