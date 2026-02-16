@@ -42,8 +42,8 @@ if [ -z "${DP_INSTALL_PROFILE:-}" ]; then
     echo "  → Template is CMS, using auto-detect"
     echo "    Profile: auto-detect (empty for CMS installer)"
   else
-    # For core, use standard profile by default. We could personalise
-    # this further in the future, but for simplificity we'll keep it
+    # For core, use standard profile by default. We could personalize
+    # this further in the future, but for simplicity we'll keep it
     # as standard, unlike the original DrupalPod.
     export DP_INSTALL_PROFILE='standard'
     echo "  → Template is core, using standard profile"
