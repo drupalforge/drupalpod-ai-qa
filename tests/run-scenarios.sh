@@ -120,6 +120,42 @@ run_scenario() {
     # If expected to succeed, validate the plan
     if [ "$should_succeed" = "true" ] && [ "$ACTUAL_SUCCESS" = "true" ] && [ -f "$DP_MODULE_MANIFEST" ]; then
 
+        # Check manifest metadata: starter template.
+        local has_expected_template=false
+        if echo "$scenario_json" | jq -e '.expect | has("manifest_starter_template")' > /dev/null 2>&1; then
+            has_expected_template=true
+        fi
+        if [ "$has_expected_template" = "true" ]; then
+            local expected_template=$(echo "$scenario_json" | jq -r '.expect.manifest_starter_template')
+            local actual_template=$(jq -r '.starter_template' "$DP_MODULE_MANIFEST")
+            if [ "$actual_template" = "$expected_template" ]; then
+                echo -e "  ${GREEN}✓ Manifest starter_template: $actual_template${NC}"
+            else
+                echo -e "  ${RED}✗ Manifest starter_template mismatch: got '$actual_template', expected '$expected_template'${NC}"
+                test_passed=false
+            fi
+        fi
+
+        # Check manifest metadata: DP_VERSION value.
+        local has_expected_version=false
+        if echo "$scenario_json" | jq -e '.expect | has("manifest_dp_version")' > /dev/null 2>&1; then
+            has_expected_version=true
+        fi
+        if [ "$has_expected_version" = "true" ]; then
+            local expected_dp_version=$(echo "$scenario_json" | jq -r '.expect.manifest_dp_version')
+            local actual_dp_version=$(jq -r '.dp_version' "$DP_MODULE_MANIFEST")
+            if [ "$actual_dp_version" = "$expected_dp_version" ]; then
+                if [ -n "$actual_dp_version" ]; then
+                    echo -e "  ${GREEN}✓ Manifest dp_version: $actual_dp_version${NC}"
+                else
+                    echo -e "  ${GREEN}✓ Manifest dp_version is empty (latest stable)${NC}"
+                fi
+            else
+                echo -e "  ${RED}✗ Manifest dp_version mismatch: got '$actual_dp_version', expected '$expected_dp_version'${NC}"
+                test_passed=false
+            fi
+        fi
+
         # Check resolved modules
         local expected_modules=$(echo "$scenario_json" | jq -r '.expect.modules_resolved[]? // empty')
         if [ -n "$expected_modules" ]; then

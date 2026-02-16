@@ -1,0 +1,92 @@
+[
+  {
+    "name": "CMS latest stable (empty DP_VERSION)",
+    "description": "CMS template with no explicit version should resolve successfully",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "",
+      "DP_AI_MODULE": "ai"
+    },
+    "expect": {
+      "should_succeed": true,
+      "manifest_starter_template": "cms",
+      "manifest_dp_version": "",
+      "modules_resolved": ["ai"]
+    }
+  },
+  {
+    "name": "CMS 1.x",
+    "description": "CMS 1.x template/version combination resolves successfully",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai"
+    },
+    "expect": {
+      "should_succeed": true,
+      "manifest_starter_template": "cms",
+      "manifest_dp_version": "1.x",
+      "modules_resolved": ["ai"]
+    }
+  },
+  {
+    "name": "CMS 2.x",
+    "description": "CMS 2.x template/version combination resolves successfully",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "2.x",
+      "DP_AI_MODULE": "ai"
+    },
+    "expect": {
+      "should_succeed": true,
+      "manifest_starter_template": "cms",
+      "manifest_dp_version": "2.x",
+      "modules_resolved": ["ai"]
+    }
+  },
+  {
+    "name": "Core latest stable (empty DP_VERSION)",
+    "description": "Core template with no explicit version should resolve successfully",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "",
+      "DP_AI_MODULE": "ai"
+    },
+    "expect": {
+      "should_succeed": true,
+      "manifest_starter_template": "core",
+      "manifest_dp_version": "",
+      "modules_resolved": ["ai"]
+    }
+  },
+  {
+    "name": "Core 11.x",
+    "description": "Core 11.x template/version combination resolves successfully",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "11.x",
+      "DP_AI_MODULE": "ai"
+    },
+    "expect": {
+      "should_succeed": true,
+      "manifest_starter_template": "core",
+      "manifest_dp_version": "11.x",
+      "modules_resolved": ["ai"]
+    }
+  },
+  {
+    "name": "Core 10.x",
+    "description": "Core 10.x template/version combination resolves successfully",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "10.x",
+      "DP_AI_MODULE": "ai"
+    },
+    "expect": {
+      "should_succeed": true,
+      "manifest_starter_template": "core",
+      "manifest_dp_version": "10.x",
+      "modules_resolved": ["ai"]
+    }
+  }
+]

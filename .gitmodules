@@ -17,3 +17,6 @@
 [submodule "repos/ai_seo"]
 	path = repos/ai_seo
 	url = https://git.drupalcode.org/project/ai_seo.git
+[submodule "repos/embedded_content"]
+	path = repos/embedded_content
+	url = https://git.drupalcode.org/project/embedded_content.git
