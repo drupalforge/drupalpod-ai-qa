@@ -27,21 +27,20 @@ bats:
 
 template-version-smoke:
   stage: test
-  image: composer:2
+  image: registry.gitlab.com/drupal-infrastructure/drupalci/drupalci-environments/php-8.3-ubuntu-apache:production
   parallel:
     matrix:
       - SCENARIO_INDEX: ["0", "1", "2", "3", "4", "5"]
   before_script:
-    - |
-      if command -v apk >/dev/null 2>&1; then
-        apk add --no-cache bash jq git unzip
-      else
-        apt-get update
-        apt-get install -y --no-install-recommends bash jq git unzip
-      fi
+    - apt-get update
+    - apt-get install -y --no-install-recommends bash jq git unzip
   script:
     - jq ".[${SCENARIO_INDEX}] | [.]" tests/scenarios-template-version.json > /tmp/scenario.json
     - bash tests/run-scenarios.sh /tmp/scenario.json
+  artifacts:
+    when: always
+    paths:
+      - logs/
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'

@@ -98,6 +98,11 @@ run_scenario() {
         cat "$DP_MODULE_MANIFEST" | jq '.'
     else
         echo "No resolution plan created (script failed)"
+        if [ -f "$TEST_LOG_DIR/output.log" ]; then
+            echo ""
+            echo "Last lines from resolver output:"
+            tail -n 80 "$TEST_LOG_DIR/output.log"
+        fi
     fi
 
     echo ""
