@@ -81,15 +81,27 @@ write_manifest_from_lock() {
     local out_path=$4
     local starter_template=$5
     local dp_version=$6
+    local resolved_project_package=$7
 
     jq --argjson requested "$requested_json" \
         --argjson skipped "$skipped_json" \
         --arg starter "$starter_template" \
         --arg dp_version "$dp_version" \
+        --arg resolved_project_package "$resolved_project_package" \
         '{
             generated_at: (now | todate),
             starter_template: $starter,
             dp_version: $dp_version,
+            resolved_project_package: $resolved_project_package,
+            resolved_project_version: (
+                first(
+                    (
+                        .packages + (.["packages-dev"] // [])
+                    )[]
+                    | select(.name == $resolved_project_package)
+                    | .version
+                ) // ""
+            ),
             requested_packages: $requested,
             skipped_packages: $skipped,
             packages: [
@@ -189,7 +201,17 @@ trap cleanup EXIT
 
 # Create the project (with or without version constraint).
 if [ -n "$RESOLVE_VERSION" ]; then
-    composer create-project -n --no-install "$RESOLVE_PROJECT":"$RESOLVE_VERSION" "$TMP_DIR"
+    if ! composer create-project -n --no-install "$RESOLVE_PROJECT":"$RESOLVE_VERSION" "$TMP_DIR"; then
+        # Some project templates expose branch-style refs (e.g. 10.x) but not
+        # composer-normalized dev refs (e.g. 10.x-dev). Retry with branch form.
+        if [[ "$RESOLVE_VERSION" == *.x-dev ]]; then
+            fallback_version="${RESOLVE_VERSION%-dev}"
+            log_warn "create-project failed for ${RESOLVE_PROJECT}:${RESOLVE_VERSION}; retrying with ${fallback_version}"
+            composer create-project -n --no-install "$RESOLVE_PROJECT":"$fallback_version" "$TMP_DIR"
+        else
+            exit 1
+        fi
+    fi
 else
     composer create-project -n --no-install "$RESOLVE_PROJECT" "$TMP_DIR"
 fi
@@ -296,7 +318,14 @@ if [ "${#SKIPPED_PACKAGES[@]}" -gt 0 ]; then
 else
     skipped_json="[]"
 fi
-write_manifest_from_lock "composer.lock" "$requested_json" "$skipped_json" "$MANIFEST_FILE" "$STARTER_TEMPLATE" "$DP_VERSION"
+
+if [ "$RESOLVE_PROJECT" = "drupal/recommended-project" ]; then
+    RESOLVED_PROJECT_PACKAGE="drupal/core-recommended"
+else
+    RESOLVED_PROJECT_PACKAGE="$RESOLVE_PROJECT"
+fi
+
+write_manifest_from_lock "composer.lock" "$requested_json" "$skipped_json" "$MANIFEST_FILE" "$STARTER_TEMPLATE" "$DP_VERSION" "$RESOLVED_PROJECT_PACKAGE"
 
 # Final output.
 log_info "Resolved AI module plan written to: $MANIFEST_FILE"

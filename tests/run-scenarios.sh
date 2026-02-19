@@ -161,6 +161,37 @@ run_scenario() {
             fi
         fi
 
+        # Check resolved base project package/version in manifest.
+        local has_project_version_pattern=false
+        if echo "$scenario_json" | jq -e '.expect | has("project_version_pattern")' > /dev/null 2>&1; then
+            has_project_version_pattern=true
+        fi
+        if [ "$has_project_version_pattern" = "true" ]; then
+            local project_version_pattern=$(echo "$scenario_json" | jq -r '.expect.project_version_pattern')
+            local actual_project_version=$(jq -r '.resolved_project_version // ""' "$DP_MODULE_MANIFEST")
+            if [ -n "$actual_project_version" ] && echo "$actual_project_version" | grep -E "$project_version_pattern" > /dev/null; then
+                echo -e "  ${GREEN}✓ Resolved project version matches: $actual_project_version ~ $project_version_pattern${NC}"
+            else
+                echo -e "  ${RED}✗ Resolved project version mismatch: '$actual_project_version' !~ '$project_version_pattern'${NC}"
+                test_passed=false
+            fi
+        fi
+
+        local has_project_package=false
+        if echo "$scenario_json" | jq -e '.expect | has("project_package")' > /dev/null 2>&1; then
+            has_project_package=true
+        fi
+        if [ "$has_project_package" = "true" ]; then
+            local expected_project_package=$(echo "$scenario_json" | jq -r '.expect.project_package')
+            local actual_project_package=$(jq -r '.resolved_project_package // ""' "$DP_MODULE_MANIFEST")
+            if [ "$actual_project_package" = "$expected_project_package" ]; then
+                echo -e "  ${GREEN}✓ Resolved project package: $actual_project_package${NC}"
+            else
+                echo -e "  ${RED}✗ Resolved project package mismatch: got '$actual_project_package', expected '$expected_project_package'${NC}"
+                test_passed=false
+            fi
+        fi
+
         # Check resolved modules
         local expected_modules=$(echo "$scenario_json" | jq -r '.expect.modules_resolved[]? // empty')
         if [ -n "$expected_modules" ]; then

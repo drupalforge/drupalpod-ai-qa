@@ -26,6 +26,8 @@
       "should_succeed": true,
       "manifest_starter_template": "cms",
       "manifest_dp_version": "1.x",
+      "project_package": "drupal/cms",
+      "project_version_pattern": "^1\\.",
       "modules_resolved": ["ai"]
     }
   },
@@ -41,6 +43,8 @@
       "should_succeed": true,
       "manifest_starter_template": "cms",
       "manifest_dp_version": "2.x",
+      "project_package": "drupal/cms",
+      "project_version_pattern": "^2\\.",
       "modules_resolved": ["ai"]
     }
   },
@@ -71,6 +75,8 @@
       "should_succeed": true,
       "manifest_starter_template": "core",
       "manifest_dp_version": "11.x",
+      "project_package": "drupal/core-recommended",
+      "project_version_pattern": "^11\\.",
       "modules_resolved": ["ai"]
     }
   },
@@ -86,6 +92,8 @@
       "should_succeed": true,
       "manifest_starter_template": "core",
       "manifest_dp_version": "10.x",
+      "project_package": "drupal/core-recommended",
+      "project_version_pattern": "^10\\.",
       "modules_resolved": ["ai"]
     }
   }
