@@ -119,3 +119,5 @@ GitLab CI workflow: `.gitlab-ci.yml`
 - `bats` job runs `npm ci` + `npm test`
 - `template-version-smoke` runs a 6-way matrix using
   `tests/scenarios-template-version.json`
+- `scenario-matrix` runs the full scenario suite using
+  `tests/scenarios.json`
