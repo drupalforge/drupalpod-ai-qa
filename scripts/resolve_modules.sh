@@ -82,25 +82,36 @@ write_manifest_from_lock() {
     local starter_template=$5
     local dp_version=$6
     local resolved_project_package=$7
+    local resolved_project_version_hint=$8
 
     jq --argjson requested "$requested_json" \
         --argjson skipped "$skipped_json" \
         --arg starter "$starter_template" \
         --arg dp_version "$dp_version" \
         --arg resolved_project_package "$resolved_project_package" \
+        --arg resolved_project_version_hint "$resolved_project_version_hint" \
         '{
             generated_at: (now | todate),
             starter_template: $starter,
             dp_version: $dp_version,
             resolved_project_package: $resolved_project_package,
             resolved_project_version: (
-                first(
-                    (
-                        .packages + (.["packages-dev"] // [])
-                    )[]
-                    | select(.name == $resolved_project_package)
-                    | .version
-                ) // ""
+                (
+                    first(
+                        (
+                            .packages + (.["packages-dev"] // [])
+                        )[]
+                        | select(.name == $resolved_project_package)
+                        | .version
+                    ) // ""
+                ) as $lock_version
+                | if ($lock_version != "") then
+                    $lock_version
+                  elif ($resolved_project_version_hint != "") then
+                    $resolved_project_version_hint
+                  else
+                    ""
+                  end
             ),
             requested_packages: $requested,
             skipped_packages: $skipped,
@@ -200,6 +211,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Create the project (with or without version constraint).
+EFFECTIVE_RESOLVE_VERSION="$RESOLVE_VERSION"
 if [ -n "$RESOLVE_VERSION" ]; then
     if ! composer create-project -n --no-install "$RESOLVE_PROJECT":"$RESOLVE_VERSION" "$TMP_DIR"; then
         # Some project templates expose branch-style refs (e.g. 10.x) but not
@@ -208,6 +220,7 @@ if [ -n "$RESOLVE_VERSION" ]; then
             fallback_version="${RESOLVE_VERSION%-dev}"
             log_warn "create-project failed for ${RESOLVE_PROJECT}:${RESOLVE_VERSION}; retrying with ${fallback_version}"
             composer create-project -n --no-install "$RESOLVE_PROJECT":"$fallback_version" "$TMP_DIR"
+            EFFECTIVE_RESOLVE_VERSION="$fallback_version"
         else
             exit 1
         fi
@@ -325,7 +338,7 @@ else
     RESOLVED_PROJECT_PACKAGE="$RESOLVE_PROJECT"
 fi
 
-write_manifest_from_lock "composer.lock" "$requested_json" "$skipped_json" "$MANIFEST_FILE" "$STARTER_TEMPLATE" "$DP_VERSION" "$RESOLVED_PROJECT_PACKAGE"
+write_manifest_from_lock "composer.lock" "$requested_json" "$skipped_json" "$MANIFEST_FILE" "$STARTER_TEMPLATE" "$DP_VERSION" "$RESOLVED_PROJECT_PACKAGE" "$EFFECTIVE_RESOLVE_VERSION"
 
 # Final output.
 log_info "Resolved AI module plan written to: $MANIFEST_FILE"

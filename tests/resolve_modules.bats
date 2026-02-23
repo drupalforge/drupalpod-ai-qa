@@ -30,7 +30,7 @@ teardown() {
 @test "write_manifest_from_lock filters to requested packages" {
     requested='["drupal/ai","drupal/ai_search"]'
     skipped='[]'
-    write_manifest_from_lock "$PROJECT_ROOT/logs/composer.lock" "$requested" "$skipped" "$PROJECT_ROOT/logs/ai-manifest.json" "cms" "1.2.0" "drupal/cms"
+    write_manifest_from_lock "$PROJECT_ROOT/logs/composer.lock" "$requested" "$skipped" "$PROJECT_ROOT/logs/ai-manifest.json" "cms" "1.2.0" "drupal/cms" "1.2.x-dev"
 
     run jq -r '.packages[].name' "$PROJECT_ROOT/logs/ai-manifest.json"
     [ "$status" -eq 0 ]
@@ -42,7 +42,7 @@ teardown() {
 @test "write_manifest_from_lock includes skipped packages" {
     requested='["drupal/ai","drupal/ai_search"]'
     skipped='["drupal/ai_agents"]'
-    write_manifest_from_lock "$PROJECT_ROOT/logs/composer.lock" "$requested" "$skipped" "$PROJECT_ROOT/logs/ai-manifest.json" "cms" "1.2.0" "drupal/cms"
+    write_manifest_from_lock "$PROJECT_ROOT/logs/composer.lock" "$requested" "$skipped" "$PROJECT_ROOT/logs/ai-manifest.json" "cms" "1.2.0" "drupal/cms" "1.2.x-dev"
 
     result=$(jq -r '.skipped_packages[]' "$PROJECT_ROOT/logs/ai-manifest.json")
     [ "$result" = "drupal/ai_agents" ]
@@ -51,7 +51,7 @@ teardown() {
 @test "write_manifest_from_lock records resolved project package and version" {
     requested='["drupal/ai"]'
     skipped='[]'
-    write_manifest_from_lock "$PROJECT_ROOT/logs/composer.lock" "$requested" "$skipped" "$PROJECT_ROOT/logs/ai-manifest.json" "cms" "2.x" "drupal/cms"
+    write_manifest_from_lock "$PROJECT_ROOT/logs/composer.lock" "$requested" "$skipped" "$PROJECT_ROOT/logs/ai-manifest.json" "cms" "2.x" "drupal/cms" "2.x-dev"
 
     project_package=$(jq -r '.resolved_project_package' "$PROJECT_ROOT/logs/ai-manifest.json")
     project_version=$(jq -r '.resolved_project_version' "$PROJECT_ROOT/logs/ai-manifest.json")

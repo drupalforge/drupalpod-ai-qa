@@ -65,6 +65,7 @@ run_scenario() {
 
     # Create test-specific log directory
     TEST_LOG_DIR="$PROJECT_ROOT/logs/test-$index"
+    rm -rf "$TEST_LOG_DIR"
     mkdir -p "$TEST_LOG_DIR"
     export DP_MODULE_MANIFEST="$TEST_LOG_DIR/ai-manifest.json"
 
