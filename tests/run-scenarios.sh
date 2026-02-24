@@ -65,6 +65,7 @@ run_scenario() {
 
     # Create test-specific log directory
     TEST_LOG_DIR="$PROJECT_ROOT/logs/test-$index"
+    rm -rf "$TEST_LOG_DIR"
     mkdir -p "$TEST_LOG_DIR"
     export DP_MODULE_MANIFEST="$TEST_LOG_DIR/ai-manifest.json"
 
@@ -98,6 +99,11 @@ run_scenario() {
         cat "$DP_MODULE_MANIFEST" | jq '.'
     else
         echo "No resolution plan created (script failed)"
+        if [ -f "$TEST_LOG_DIR/output.log" ]; then
+            echo ""
+            echo "Last lines from resolver output:"
+            tail -n 80 "$TEST_LOG_DIR/output.log"
+        fi
     fi
 
     echo ""
@@ -119,6 +125,73 @@ run_scenario() {
 
     # If expected to succeed, validate the plan
     if [ "$should_succeed" = "true" ] && [ "$ACTUAL_SUCCESS" = "true" ] && [ -f "$DP_MODULE_MANIFEST" ]; then
+
+        # Check manifest metadata: starter template.
+        local has_expected_template=false
+        if echo "$scenario_json" | jq -e '.expect | has("manifest_starter_template")' > /dev/null 2>&1; then
+            has_expected_template=true
+        fi
+        if [ "$has_expected_template" = "true" ]; then
+            local expected_template=$(echo "$scenario_json" | jq -r '.expect.manifest_starter_template')
+            local actual_template=$(jq -r '.starter_template' "$DP_MODULE_MANIFEST")
+            if [ "$actual_template" = "$expected_template" ]; then
+                echo -e "  ${GREEN}✓ Manifest starter_template: $actual_template${NC}"
+            else
+                echo -e "  ${RED}✗ Manifest starter_template mismatch: got '$actual_template', expected '$expected_template'${NC}"
+                test_passed=false
+            fi
+        fi
+
+        # Check manifest metadata: DP_VERSION value.
+        local has_expected_version=false
+        if echo "$scenario_json" | jq -e '.expect | has("manifest_dp_version")' > /dev/null 2>&1; then
+            has_expected_version=true
+        fi
+        if [ "$has_expected_version" = "true" ]; then
+            local expected_dp_version=$(echo "$scenario_json" | jq -r '.expect.manifest_dp_version')
+            local actual_dp_version=$(jq -r '.dp_version' "$DP_MODULE_MANIFEST")
+            if [ "$actual_dp_version" = "$expected_dp_version" ]; then
+                if [ -n "$actual_dp_version" ]; then
+                    echo -e "  ${GREEN}✓ Manifest dp_version: $actual_dp_version${NC}"
+                else
+                    echo -e "  ${GREEN}✓ Manifest dp_version is empty (latest stable)${NC}"
+                fi
+            else
+                echo -e "  ${RED}✗ Manifest dp_version mismatch: got '$actual_dp_version', expected '$expected_dp_version'${NC}"
+                test_passed=false
+            fi
+        fi
+
+        # Check resolved base project package/version in manifest.
+        local has_project_version_pattern=false
+        if echo "$scenario_json" | jq -e '.expect | has("project_version_pattern")' > /dev/null 2>&1; then
+            has_project_version_pattern=true
+        fi
+        if [ "$has_project_version_pattern" = "true" ]; then
+            local project_version_pattern=$(echo "$scenario_json" | jq -r '.expect.project_version_pattern')
+            local actual_project_version=$(jq -r '.resolved_project_version // ""' "$DP_MODULE_MANIFEST")
+            if [ -n "$actual_project_version" ] && echo "$actual_project_version" | grep -E "$project_version_pattern" > /dev/null; then
+                echo -e "  ${GREEN}✓ Resolved project version matches: $actual_project_version ~ $project_version_pattern${NC}"
+            else
+                echo -e "  ${RED}✗ Resolved project version mismatch: '$actual_project_version' !~ '$project_version_pattern'${NC}"
+                test_passed=false
+            fi
+        fi
+
+        local has_project_package=false
+        if echo "$scenario_json" | jq -e '.expect | has("project_package")' > /dev/null 2>&1; then
+            has_project_package=true
+        fi
+        if [ "$has_project_package" = "true" ]; then
+            local expected_project_package=$(echo "$scenario_json" | jq -r '.expect.project_package')
+            local actual_project_package=$(jq -r '.resolved_project_package // ""' "$DP_MODULE_MANIFEST")
+            if [ "$actual_project_package" = "$expected_project_package" ]; then
+                echo -e "  ${GREEN}✓ Resolved project package: $actual_project_package${NC}"
+            else
+                echo -e "  ${RED}✗ Resolved project package mismatch: got '$actual_project_package', expected '$expected_project_package'${NC}"
+                test_passed=false
+            fi
+        fi
 
         # Check resolved modules
         local expected_modules=$(echo "$scenario_json" | jq -r '.expect.modules_resolved[]? // empty')

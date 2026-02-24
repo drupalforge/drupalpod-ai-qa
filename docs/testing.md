@@ -113,19 +113,11 @@ Example scenario:
 
 ## CI Integration
 
-Add to `.github/workflows/test.yml`:
+GitLab CI workflow: `.gitlab-ci.yml`
 
-```yaml
-name: Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-      - run: npm ci
-      - run: npm test
-```
+- Includes Drupal CI templates (`include.drupalci.*.yml`)
+- `bats` job runs `npm ci` + `npm test`
+- `template-version-smoke` runs a 6-way matrix using
+  `tests/scenarios-template-version.json`
+- `scenario-matrix` runs the full scenario suite using
+  `tests/scenarios.json`
