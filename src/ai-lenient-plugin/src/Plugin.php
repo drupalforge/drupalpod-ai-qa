@@ -63,7 +63,7 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
     }
 
     /**
-     * Rewrites drupal/ai constraints during pool creation when forced.
+     * Rewrites package constraints during pool creation when forced.
      *
      * @param \Composer\Plugin\PrePoolCreateEvent $event
      *   The Composer pool event.
@@ -74,63 +74,87 @@ final class Plugin implements PluginInterface, EventSubscriberInterface
             return;
         }
 
-        $constraint = $this->buildAiConstraint();
-        if ($constraint === null) {
+        $lenientPackages = $this->getLenientPackages();
+        if (empty($lenientPackages)) {
             return;
         }
 
+        $constraint = $this->buildLenientConstraint();
+
         foreach ($event->getPackages() as $package) {
-            $this->adjustPackage($package, $constraint);
+            $this->adjustPackage($package, $lenientPackages, $constraint);
         }
     }
 
     /**
-     * Builds the drupal/ai constraint to apply across packages.
+     * Gets the list of packages to relax from environment.
      *
-     * @return \Composer\Semver\Constraint\ConstraintInterface|null
+     * @return array
      */
-    private function buildAiConstraint(): ?\Composer\Semver\Constraint\ConstraintInterface
+    private function getLenientPackages(): array
     {
-        $version = getenv('DP_AI_MODULE_VERSION') ?: '';
-        $major = $this->extractMajorVersion($version);
-        $constraint = $major !== '' ? '^' . $major : '*';
-        return (new VersionParser())->parseConstraints($constraint);
-    }
-
-    /**
-     * Extracts the major version from a version string.
-     *
-     * @param string $version
-     *   The version string to inspect.
-     *
-     * @return string
-     */
-    private function extractMajorVersion(string $version): string
-    {
-        if (preg_match('/([0-9]+)/', $version, $matches) === 1) {
-            return $matches[1];
+        $packages = getenv('DP_LENIENT_PACKAGES') ?: '';
+        if ($packages === '') {
+            return [];
         }
 
-        return '';
+        return array_map('trim', explode(',', $packages));
     }
 
     /**
-     * Applies the relaxed constraint to a package's drupal/ai requirement.
+     * Check if a package should be relaxed based on patterns.
+     *
+     * @param string $packageName
+     * @param array $lenientPackages
+     * @return bool
+     */
+    private function shouldRelaxPackage(string $packageName, array $lenientPackages): bool
+    {
+        foreach ($lenientPackages as $pattern) {
+            // Handle wildcard patterns (e.g., "drupal/*")
+            if (strpos($pattern, '*') !== false) {
+                $regex = '/^' . str_replace(['/', '*'], ['\/', '.*'], $pattern) . '$/';
+                if (preg_match($regex, $packageName)) {
+                    return true;
+                }
+            } elseif ($pattern === $packageName) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Builds the lenient constraint to apply across packages.
+     *
+     * @return \Composer\Semver\Constraint\ConstraintInterface
+     */
+    private function buildLenientConstraint(): \Composer\Semver\Constraint\ConstraintInterface
+    {
+        // Use wildcard constraint to allow any version
+        return (new VersionParser())->parseConstraints('*');
+    }
+
+    /**
+     * Applies the relaxed constraint to a package's requirements.
      *
      * @param \Composer\Package\PackageInterface $package
      *   The package to update.
+     * @param array $lenientPackages
+     *   List of packages or patterns to relax.
      * @param \Composer\Semver\Constraint\ConstraintInterface $constraint
      *   The constraint to apply.
      */
-    private function adjustPackage(PackageInterface $package, \Composer\Semver\Constraint\ConstraintInterface $constraint): void
+    private function adjustPackage(PackageInterface $package, array $lenientPackages, \Composer\Semver\Constraint\ConstraintInterface $constraint): void
     {
-        $requires = array_map(function (Link $link) use ($constraint) {
-            if ($link->getDescription() === Link::TYPE_REQUIRE && $link->getTarget() === 'drupal/ai') {
+        $requires = array_map(function (Link $link) use ($lenientPackages, $constraint) {
+            // Relax any drupal/* package requirements that match lenient patterns.
+            if ($this->shouldRelaxPackage($link->getTarget(), $lenientPackages)) {
                 return new Link(
                     $link->getSource(),
                     $link->getTarget(),
                     $constraint,
-                    $link->getDescription(),
+                    Link::TYPE_REQUIRE,
                     $constraint->getPrettyString()
                 );
             }

@@ -146,7 +146,7 @@ require_issue_version "Test module" "DP_TEST_MODULE_VERSION" "DP_TEST_MODULE_ISS
 # Show final AI module configurations.
 echo "  AI Module Configuration:"
 echo "   - AI Base: $DP_AI_MODULE @ $DP_AI_MODULE_VERSION"
-echo "   - Force Dependencies: ${DP_FORCE_DEPENDENCIES:-0}"
+echo "   - Force Dependencies: ${DP_FORCE_DEPENDENCIES:-1}"
 if [ -n "${DP_AI_ISSUE_BRANCH:-}" ]; then
     echo "     └─ Testing PR: $DP_AI_ISSUE_FORK/$DP_AI_ISSUE_BRANCH"
 fi

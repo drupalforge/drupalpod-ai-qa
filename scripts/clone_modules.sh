@@ -215,7 +215,7 @@ while read -r package version; do
 
     if [ -n "$issue_branch" ]; then
         if [ "$module_name" = "${DP_AI_MODULE}" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
-            if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
+            if [ "${DP_FORCE_DEPENDENCIES:-1}" = "1" ]; then
                 continue
             fi
             alias_target="${DP_AI_MODULE_VERSION}-dev"

@@ -82,14 +82,36 @@ write_manifest_from_lock() {
     local starter_template=$5
     local dp_version=$6
 
+    # Extract resolved versions for CMS and Core from composer.lock
+    local cms_version=""
+    local core_version=""
+
+    cms_version=$(jq -r '.packages[] | select(.name=="drupal/cms") | .version' "$lock_path" | head -1)
+    if [ "$cms_version" = "null" ] || [ -z "$cms_version" ]; then
+        cms_version=""
+    fi
+
+    # Try both drupal/core-recommended and drupal/core
+    core_version=$(jq -r '.packages[] | select(.name=="drupal/core-recommended") | .version' "$lock_path" | head -1)
+    if [ "$core_version" = "null" ] || [ -z "$core_version" ]; then
+        core_version=$(jq -r '.packages[] | select(.name=="drupal/core") | .version' "$lock_path" | head -1)
+        if [ "$core_version" = "null" ] || [ -z "$core_version" ]; then
+            core_version=""
+        fi
+    fi
+
     jq --argjson requested "$requested_json" \
         --argjson skipped "$skipped_json" \
         --arg starter "$starter_template" \
         --arg dp_version "$dp_version" \
+        --arg cms_version "$cms_version" \
+        --arg core_version "$core_version" \
         '{
             generated_at: (now | todate),
             starter_template: $starter,
             dp_version: $dp_version,
+            resolved_cms_version: $cms_version,
+            resolved_core_version: $core_version,
             requested_packages: $requested,
             skipped_packages: $skipped,
             packages: [
@@ -103,15 +125,16 @@ write_manifest_from_lock() {
 # Decide which base project to resolve against (CMS vs core).
 STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-cms}"
 DP_VERSION="${DP_VERSION:-}"
-
-# Determine AI resolution base.
-# Default: follow CMS/core constraints directly.
-# When DP_FORCE_DEPENDENCIES=1 and template is CMS, resolve against core only.
-RESOLVE_PROJECT=""
-RESOLVE_VERSION=""
 FORCE_DEPENDENCIES="${DP_FORCE_DEPENDENCIES:-0}"
 
-# If forcing dependencies with CMS, resolve against core first.
+# Determine AI resolution base.
+# When forcing dependencies with CMS, resolve against core to bypass drupal_cms_ai constraints.
+# Otherwise, resolve directly against CMS or Core as appropriate.
+RESOLVE_PROJECT=""
+RESOLVE_VERSION=""
+
+# If forcing dependencies with CMS, extract core version and resolve against it.
+# This bypasses drupal_cms_ai version constraints that would block incompatible AI versions.
 if [ "$STARTER_TEMPLATE" = "cms" ] && [ "$FORCE_DEPENDENCIES" = "1" ]; then
     cms_install_version=""
 
@@ -123,20 +146,23 @@ if [ "$STARTER_TEMPLATE" = "cms" ] && [ "$FORCE_DEPENDENCIES" = "1" ]; then
     # Create a temporary CMS project to extract core versions.
     cms_tmp_dir=$(mktemp -d)
     if [ -n "$cms_install_version" ]; then
-        composer create-project -n --no-install "drupal/cms:$cms_install_version" "$cms_tmp_dir"
+        composer create-project -n --no-install "drupal/cms:$cms_install_version" "$cms_tmp_dir" >/dev/null 2>&1
     else
-        composer create-project -n --no-install "drupal/cms" "$cms_tmp_dir"
+        composer create-project -n --no-install "drupal/cms" "$cms_tmp_dir" >/dev/null 2>&1
     fi
 
     # Configure permissive resolution.
-    composer -d "$cms_tmp_dir" config minimum-stability dev
-    composer -d "$cms_tmp_dir" update --no-install --no-progress
+    composer -d "$cms_tmp_dir" config minimum-stability dev >/dev/null 2>&1
+    composer -d "$cms_tmp_dir" update --no-install --no-progress >/dev/null 2>&1
     RESOLVE_VERSION=$(jq -r '.packages[] | select(.name=="drupal/core-recommended") | .version' "$cms_tmp_dir/composer.lock" | head -1)
 
     rm -rf "$cms_tmp_dir"
 
+    # Resolve AI modules against core instead of CMS to bypass drupal_cms_ai.
     RESOLVE_PROJECT="drupal/recommended-project"
+    log_info "Forcing dependencies: resolving AI against Core $RESOLVE_VERSION (bypassing CMS constraints)"
 else
+    # Standard resolution: follow CMS/core constraints directly.
     if [ "$STARTER_TEMPLATE" = "cms" ]; then
         RESOLVE_PROJECT="drupal/cms"
         if [ -n "${DP_VERSION:-}" ]; then
@@ -187,36 +213,96 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Create the project (with or without version constraint).
-if [ -n "$RESOLVE_VERSION" ]; then
-    composer create-project -n --no-install "$RESOLVE_PROJECT":"$RESOLVE_VERSION" "$TMP_DIR"
-else
-    composer create-project -n --no-install "$RESOLVE_PROJECT" "$TMP_DIR"
+# Auto-detect compatible version when DP_VERSION is empty
+# This lets Composer find the best CMS/Core version based on all requirements
+AUTO_DETECT_VERSION=0
+if [ -z "$RESOLVE_VERSION" ]; then
+    AUTO_DETECT_VERSION=1
+    if [ -n "${DP_TEST_MODULE:-}" ]; then
+        log_info "Auto-detecting compatible $RESOLVE_PROJECT version based on ${DP_TEST_MODULE} requirements"
+    else
+        log_info "Auto-detecting compatible $RESOLVE_PROJECT version based on ${DP_AI_MODULE} requirements"
+    fi
 fi
 
-cd "$TMP_DIR"
+# Create the project (with or without version constraint).
+create_project_with_version_fallback() {
+    local project=$1
+    local version=$2
+    local target_dir=$3
 
-# Keep the resolver permissive so we can test dev branches.
-composer config minimum-stability dev
-
-LENIENT_PACKAGES=()
-if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
-    # If AI version explicitly set, bypass CMS/core constraints.
-    if [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
-        LENIENT_PACKAGES+=("drupal/${DP_AI_MODULE}")
+    if composer create-project -n --no-install "${project}:${version}" "$target_dir"; then
+        return 0
     fi
 
-    # If AI version is explicit, allow the test module to bypass strict constraints.
-    if [ -n "${DP_TEST_MODULE:-}" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
+    # Some templates resolve branch aliases differently for create-project.
+    if [[ "$version" == *.x-dev ]]; then
+        local fallback_version="${version%-dev}"
+        log_warn "create-project failed for ${project}:${version}; retrying with ${project}:${fallback_version}"
+        composer create-project -n --no-install "${project}:${fallback_version}" "$target_dir"
+        return 0
+    fi
+
+    return 1
+}
+
+if [ "$AUTO_DETECT_VERSION" = "1" ]; then
+    # Don't use create-project - it locks to latest. Instead, init empty project.
+    mkdir -p "$TMP_DIR"
+    cd "$TMP_DIR"
+    composer init --no-interaction --name="drupalpod/temp-resolver" --type="project"
+    composer config minimum-stability dev
+    # Add CMS/Core WITHOUT version constraint so Composer can choose compatible version
+    composer require --no-update "$RESOLVE_PROJECT"
+else
+    # Normal flow: pin to specific version or use latest
+    if [ -n "$RESOLVE_VERSION" ]; then
+        create_project_with_version_fallback "$RESOLVE_PROJECT" "$RESOLVE_VERSION" "$TMP_DIR"
+    else
+        composer create-project -n --no-install "$RESOLVE_PROJECT" "$TMP_DIR"
+    fi
+    cd "$TMP_DIR"
+    composer config minimum-stability dev
+fi
+
+# Enable lenient mode for initial resolution when forcing incompatible versions.
+# This allows required packages (AI base + test module) to resolve even if incompatible.
+# Optional modules are tested later with --no-plugins to ensure genuine compatibility.
+if [ "$FORCE_DEPENDENCIES" = "1" ]; then
+    LENIENT_PACKAGES=("drupal/ai" "drupal/ai_*")
+
+    # If there's a test module, add it explicitly to lenient list.
+    if [ -n "${DP_TEST_MODULE:-}" ]; then
         LENIENT_PACKAGES+=("drupal/${DP_TEST_MODULE}")
     fi
-fi
 
-# Enable lenient mode only if needed. This allows Composer to bypass
-# strict core/CMS constraints for explicit tests.
-if [ "${#LENIENT_PACKAGES[@]}" -gt 0 ]; then
-    log_info "Enabling lenient mode for: ${LENIENT_PACKAGES[*]}"
+    export DP_LENIENT_PACKAGES="$(IFS=,; echo "${LENIENT_PACKAGES[*]}")"
+    log_info "Enabling lenient mode for required package resolution: ${LENIENT_PACKAGES[*]}"
+
+    # Enable local AI lenient plugin in resolver context so module->AI
+    # constraints (e.g. ai_context -> drupal/ai ^1.3) can be relaxed too.
+    plugin_path="$PROJECT_ROOT/src/ai-lenient-plugin"
+    if [ -d "$plugin_path" ]; then
+        composer config --no-plugins allow-plugins.drupalpod/ai-lenient-plugin true
+        composer config --no-plugins repositories.ai-lenient-plugin \
+            "{\"type\": \"path\", \"url\": \"$plugin_path\", \"options\": {\"symlink\": true}}"
+        composer require --prefer-dist -n --no-update "drupalpod/ai-lenient-plugin:*@dev"
+    fi
+
+    # Also enable mglaman/composer-drupal-lenient for broad ecosystem relaxation.
     configure_lenient_mode "${LENIENT_PACKAGES[@]}"
+
+    # Warm up plugin installation so pre-pool rewrites are active during solve.
+    # Plugins must be actually installed (not just locked) to be activated.
+    # Install just the plugins first, then they'll be active for subsequent updates.
+    composer -n update --no-progress \
+        mglaman/composer-drupal-lenient \
+        drupalpod/ai-lenient-plugin
+
+    # Verify plugins are installed.
+    if [ ! -d "vendor/drupalpod/ai-lenient-plugin" ]; then
+        log_warn "AI lenient plugin not installed in vendor/"
+    fi
 fi
 
 # Install required packages first (AI base + test module).
@@ -225,7 +311,12 @@ for i in "${!REQUIRED_PACKAGES[@]}"; do
 done
 
 # Run initial update to resolve versions.
-composer -n update --no-install --no-progress
+# Use --with-all-dependencies to ensure lenient plugins process all packages.
+if [ "$FORCE_DEPENDENCIES" = "1" ]; then
+    composer -n update --no-install --no-progress --with-all-dependencies
+else
+    composer -n update --no-install --no-progress
+fi
 
 # Lock in the resolved AI version if it wasn't explicit.
 # This ensures optional modules resolve against a fixed
@@ -255,9 +346,9 @@ if [ -n "${DP_TEST_MODULE:-}" ]; then
     fi
 else
     echo "AI version resolved. Now trying optional modules..."
-    # Try to add optional modules one by one (skip if incompatible).
-    # Each module gets a trial update; failures are rolled back.
-    # @todo Is there a more efficient way to do this with Composer?
+
+    # Test optional modules for genuine compatibility without lenient mode.
+    # Use --no-plugins flag to disable lenient during testing for maximum performance.
     if [ "${#OPTIONAL_PACKAGES[@]}" -gt 0 ]; then
         for i in "${!OPTIONAL_PACKAGES[@]}"; do
             optional_pkg="${OPTIONAL_PACKAGES[$i]}"
@@ -265,22 +356,29 @@ else
 
             echo "  Trying ${optional_pkg}..."
 
-            # Backup composer files in case this module fails.
-            backup_composer
+            # Backup current state.
+            cp composer.json composer.json.bak
+            cp composer.lock composer.lock.bak 2>/dev/null || true
 
-            # Try to add this module.
+            # Test compatibility with --no-plugins to disable lenient mode.
+            # This is the fastest approach: no temp dirs, no file operations.
             composer require --prefer-dist -n --no-update "${optional_pkg}:${optional_constraint}"
-            if composer -n update --no-install --no-progress 2>/dev/null; then
-                echo "    ✓ ${optional_pkg} is compatible"
-                cleanup_composer_backup
+            if composer -n update --no-plugins --no-install --no-progress 2>/dev/null; then
+                echo "    ✓ ${optional_pkg} is compatible."
                 REQUIRED_PACKAGES+=("$optional_pkg")
+                # Keep the changes - remove backups.
+                rm -f composer.json.bak composer.lock.bak
             else
-                echo "    ✗ ${optional_pkg} is incompatible, skipping"
+                echo "    ✗ ${optional_pkg} is incompatible, skipping."
                 # Restore previous state.
-                restore_composer
+                mv composer.json.bak composer.json
+                mv composer.lock.bak composer.lock 2>/dev/null || true
                 SKIPPED_PACKAGES+=("$optional_pkg")
             fi
         done
+
+        # Final update in main environment with all compatible optionals.
+        composer -n update --no-install --no-progress
     fi
 fi
 

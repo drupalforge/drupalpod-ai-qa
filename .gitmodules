@@ -17,3 +17,7 @@
 [submodule "repos/ai_seo"]
 	path = repos/ai_seo
 	url = https://git.drupalcode.org/project/ai_seo.git
+[submodule "repos/ai_context"]
+	path = repos/ai_context
+	url = https://git.drupalcode.org/project/ai_context.git
+	ignore = dirty

@@ -124,7 +124,7 @@ Note: `DP_AI_VIRTUAL_KEY` support is not fully integrated or tested yet.
 | `DP_AI_ISSUE_FORK` | Fork name for AI PR testing (requires branch) | Empty |
 | `DP_AI_ISSUE_BRANCH` | Branch name for AI PR testing (requires fork) | Empty |
 | `DP_AI_MODULES` | Ecosystem modules to include (allowlisted) | `ai_provider_amazeeio,ai_search,ai_agents` |
-| `DP_FORCE_DEPENDENCIES` | `1` = relax drupal/ai constraints via local plugin | `0` |
+| `DP_FORCE_DEPENDENCIES` | `1` = lenient mode (relax constraints), `0` = strict | `1` |
 
 ### Test Module Settings
 
@@ -135,13 +135,50 @@ Note: `DP_AI_VIRTUAL_KEY` support is not fully integrated or tested yet.
 | `DP_TEST_MODULE_ISSUE_FORK` | Fork name for test module PR (requires branch) | Empty |
 | `DP_TEST_MODULE_ISSUE_BRANCH` | Branch name for test module PR (requires fork) | Empty |
 
-### Local Composer Plugin
+### Lenient Mode (DP_FORCE_DEPENDENCIES)
 
-When `DP_FORCE_DEPENDENCIES=1`, a local Composer plugin relaxes `drupal/ai`
-constraints so CMS + AI 2.x combinations can resolve. The plugin lives at
-`src/ai-lenient-plugin` and only runs for this project. It is inspired by
-`mglaman/composer-drupal-lenient` (see https://github.com/mglaman/composer-drupal-lenient)
-and is intentionally lightweight for now.
+**Default: Enabled (`DP_FORCE_DEPENDENCIES=1`)**
+
+Lenient mode relaxes Drupal package version constraints during dependency resolution,
+allowing you to force incompatible module combinations together for QA testing. This is
+essential when testing patches, PRs, or new versions that may not yet satisfy strict
+semver constraints.
+
+**How it works:**
+
+Two Composer plugins work together to relax constraints:
+
+1. **mglaman/composer-drupal-lenient** - Broad ecosystem relaxation
+2. **drupalpod/ai-lenient-plugin** (local) - Custom plugin for AI module constraints
+
+When enabled, these plugins:
+- Relax `drupal/ai` version constraints to `*` (any version)
+- Allow test modules with incompatible AI requirements (e.g., `ai_context ^1.3`) to install with AI 2.0.x
+- Bypass `drupal_cms_ai` version constraints when forcing AI versions on CMS
+- Enable QA workflows without manual `composer.json` editing
+
+**Example use cases:**
+```yaml
+# Force AI 2.0.x with ai_context (which requires AI ^1.3)
+- DP_AI_MODULE_VERSION=2.0.x
+- DP_TEST_MODULE=ai_context
+- DP_TEST_MODULE_VERSION=1.0.x
+- DP_FORCE_DEPENDENCIES=1  # Allows incompatible versions
+
+# Test CMS 1.x with AI 2.0.x (bypasses drupal_cms_ai ^1.x constraint)
+- DP_STARTER_TEMPLATE=cms
+- DP_VERSION=1.x
+- DP_AI_MODULE_VERSION=2.0.x
+- DP_FORCE_DEPENDENCIES=1
+```
+
+**When to disable (set to `0`):**
+- Testing strict semver compatibility
+- Validating that modules satisfy their declared constraints
+- Production-like dependency resolution
+
+The local plugin lives at `src/ai-lenient-plugin/`. See https://github.com/mglaman/composer-drupal-lenient
+for the upstream inspiration.
 
 ### Configuration Files
 
@@ -206,11 +243,18 @@ to `logs/ai-manifest.json` that `clone_modules.sh` uses to check out git repos.
 When `DP_TEST_MODULE` is set:
 
 1. The test module drives compatibility for `drupal/ai`
-2. Optional ecosystem modules are skipped (so they don't block the test)
-3. The resolved plan still includes AI + the test module
+2. Optional ecosystem modules are tested for compatibility and skipped if incompatible
+3. The resolved plan includes AI + the test module + any compatible optional modules
 
-When `DP_FORCE_DEPENDENCIES=1`, a local Composer plugin relaxes `drupal/ai`
-constraints so explicit tests (e.g., AI 2.x against CMS) can resolve.
+When `DP_FORCE_DEPENDENCIES=1` (default):
+
+1. Lenient plugins are installed to `vendor/` and activated
+2. Constraints on `drupal/ai` and test modules are relaxed to `*` (any version)
+3. For CMS templates, AI resolution happens against Core (bypassing `drupal_cms_ai`)
+4. Optional modules are still tested for genuine compatibility using `--no-plugins`
+
+This allows forcing incompatible versions (e.g., AI 2.0.x + ai_context 1.0.x which requires AI ^1.3)
+while still intelligently skipping truly incompatible optional modules.
 
 
 ### Working with Cloned Modules

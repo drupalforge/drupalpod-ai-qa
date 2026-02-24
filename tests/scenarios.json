@@ -158,6 +158,64 @@
     }
   },
   {
+    "name": "DP_TEST_MODULE: ai_context with auto-detect AI version",
+    "description": "Test ai_context module - resolves to AI 1.x",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_TEST_MODULE": "ai_context",
+      "DP_TEST_MODULE_VERSION": "1.0.x"
+    },
+    "expect": {
+      "should_succeed": true,
+      "ai_version_pattern": "^1\\.3",
+      "modules_resolved": ["ai", "ai_context"],
+      "comment": "ai_context requires AI ^1.3, resolves correctly"
+    }
+  },
+  {
+    "name": "DP_TEST_MODULE: ai_context with forced AI 2.0.x (should FAIL)",
+    "description": "Force AI 2.0.x but ai_context requires AI ^1.3 - test module fails",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_TEST_MODULE": "ai_context",
+      "DP_TEST_MODULE_VERSION": "1.0.x",
+      "DP_FORCE_DEPENDENCIES": "0"
+    },
+    "expect": {
+      "should_succeed": false,
+      "comment": "ai_context 1.0.x requires AI ^1.3, conflicts with explicit AI 2.0.x"
+    }
+  },
+  {
+    "name": "DP_TEST_MODULE: ai_context with forced AI 2.0.x and lenient mode",
+    "description": "Lenient mode allows forcing AI 2.x with ai_context 1.x",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_TEST_MODULE": "ai_context",
+      "DP_TEST_MODULE_VERSION": "1.0.x",
+      "DP_FORCE_DEPENDENCIES": "1"
+    },
+    "expect": {
+      "should_succeed": true,
+      "lenient_enabled": true,
+      "ai_version_pattern": "(^dev-2\\.0\\.x$|^2\\.0\\.x-dev$)",
+      "modules_resolved": ["ai", "ai_context"],
+      "comment": "Lenient mode relaxes ai_context's drupal/ai ^1.3 constraint to allow AI 2.x"
+    }
+  },
+  {
     "name": "Test AI module PR branch",
     "description": "Test a PR for the base AI module",
     "env": {

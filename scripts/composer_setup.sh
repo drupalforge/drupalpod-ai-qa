@@ -35,7 +35,24 @@ else
 fi
 
 if [ -n "${DP_VERSION:-}" ]; then
+    # User specified explicit version
     INSTALL_VERSION="$(normalize_version_to_composer "${DP_VERSION}")"
+else
+    # Auto-detect: read resolved version from manifest if it exists
+    if [ -f "$MANIFEST_FILE" ]; then
+        if [ "$STARTER_TEMPLATE" = "cms" ]; then
+            # For CMS, use resolved CMS version if available
+            RESOLVED_VERSION=$(jq -r '.resolved_cms_version // ""' "$MANIFEST_FILE")
+        else
+            # For Core, use resolved core version if available
+            RESOLVED_VERSION=$(jq -r '.resolved_core_version // ""' "$MANIFEST_FILE")
+        fi
+
+        if [ -n "$RESOLVED_VERSION" ] && [ "$RESOLVED_VERSION" != "null" ]; then
+            INSTALL_VERSION="$RESOLVED_VERSION"
+            log_info "Using auto-detected version from manifest: $INSTALL_VERSION"
+        fi
+    fi
 fi
 
 export COMPOSER_PROJECT
@@ -57,6 +74,7 @@ rm -rf temp-composer-files
 if [ -n "$INSTALL_VERSION" ]; then
     time composer create-project --prefer-dist -n --no-install "$COMPOSER_PROJECT":"$INSTALL_VERSION" temp-composer-files
 else
+    # No version specified and no manifest - use latest
     time composer create-project --prefer-dist -n --no-install "$COMPOSER_PROJECT" temp-composer-files
 fi
 
@@ -94,15 +112,17 @@ composer config minimum-stability dev
 # Allow patches to fail without stopping installation.
 composer config extra.composer-exit-on-patch-failure false
 
-# If forcing dependencies, enable lenient mode so explicit AI versions can
-# bypass CMS/core constraints during the actual install.
-if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
-    LENIENT_PACKAGES=()
-    LENIENT_PACKAGES+=("drupal/${DP_AI_MODULE:-ai}")
-    if [ -n "${DP_TEST_MODULE:-}" ]; then
-        LENIENT_PACKAGES+=("drupal/${DP_TEST_MODULE}")
-    fi
+# Enable lenient mode by default for QA workflows.
+# Set DP_FORCE_DEPENDENCIES=0 to enable strict compatibility checking.
+if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
+    # Relax ALL drupal/* packages to bypass version constraints
+    # This allows incompatible module combinations to install for testing
+    LENIENT_PACKAGES=("drupal/*")
+
     configure_lenient_mode "${LENIENT_PACKAGES[@]}"
+
+    # Export for ai-lenient-plugin to use (wildcard mode)
+    export DP_LENIENT_PACKAGES="drupal/*"
 fi
 
 # Scaffold settings.php.
@@ -110,13 +130,20 @@ composer config --json extra.drupal-scaffold.file-mapping '{"[web-root]/sites/de
 composer config scripts.post-drupal-scaffold-cmd \
     "cd web/sites/default && test -z \"\$(grep 'include \\\$devpanel_settings;' settings.php)\" && patch -Np1 -r /dev/null < $APP_ROOT/.devpanel/drupal-settings.patch || :"
 
-# If forcing dependencies, enable the local AI lenient plugin.
+# Enable the local AI lenient plugin (unless strict mode is requested).
 if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
     plugin_path="$PROJECT_ROOT/src/ai-lenient-plugin"
     if [ -d "$plugin_path" ]; then
         composer config --no-plugins repositories.ai-lenient-plugin \
             "{\"type\": \"path\", \"url\": \"$plugin_path\", \"options\": {\"symlink\": true}}"
         composer require --prefer-dist -n --no-progress "drupalpod/ai-lenient-plugin:*@dev"
+
+        # Ensure lenient plugins are installed/active before the main solve.
+        # Without this warm-up step, the first full update can run before
+        # plugin constraint rewriting takes effect for forced combinations.
+        composer -n update --no-progress \
+            mglaman/composer-drupal-lenient \
+            drupalpod/ai-lenient-plugin
     fi
 fi
 
