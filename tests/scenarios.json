@@ -44,7 +44,8 @@
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "2.0.x",
-      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_FORCE_DEPENDENCIES": "0"
     },
     "expect": {
       "should_succeed": false,
@@ -133,7 +134,8 @@
       "DP_AI_MODULE_VERSION": "2.0.x",
       "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
       "DP_TEST_MODULE": "ai_seo",
-      "DP_TEST_MODULE_VERSION": ""
+      "DP_TEST_MODULE_VERSION": "",
+      "DP_FORCE_DEPENDENCIES": "0"
     },
     "expect": {
       "should_succeed": false,
@@ -150,7 +152,8 @@
       "DP_AI_MODULE_VERSION": "2.0.x",
       "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
       "DP_TEST_MODULE": "ai_seo",
-      "DP_TEST_MODULE_VERSION": "1.0.7"
+      "DP_TEST_MODULE_VERSION": "1.0.7",
+      "DP_FORCE_DEPENDENCIES": "0"
     },
     "expect": {
       "should_succeed": false,

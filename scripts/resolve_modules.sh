@@ -125,54 +125,23 @@ write_manifest_from_lock() {
 # Decide which base project to resolve against (CMS vs core).
 STARTER_TEMPLATE="${DP_STARTER_TEMPLATE:-cms}"
 DP_VERSION="${DP_VERSION:-}"
-FORCE_DEPENDENCIES="${DP_FORCE_DEPENDENCIES:-0}"
+FORCE_DEPENDENCIES="${DP_FORCE_DEPENDENCIES}"
 
 # Determine AI resolution base.
-# When forcing dependencies with CMS, resolve against core to bypass drupal_cms_ai constraints.
-# Otherwise, resolve directly against CMS or Core as appropriate.
+# Always resolve against the selected starter template:
+# - cms  -> drupal/cms
+# - core -> drupal/recommended-project
 RESOLVE_PROJECT=""
 RESOLVE_VERSION=""
-
-# If forcing dependencies with CMS, extract core version and resolve against it.
-# This bypasses drupal_cms_ai version constraints that would block incompatible AI versions.
-if [ "$STARTER_TEMPLATE" = "cms" ] && [ "$FORCE_DEPENDENCIES" = "1" ]; then
-    cms_install_version=""
-
-    # If DP_VERSION is set, normalize it for composer.
+if [ "$STARTER_TEMPLATE" = "cms" ]; then
+    RESOLVE_PROJECT="drupal/cms"
     if [ -n "${DP_VERSION:-}" ]; then
-        cms_install_version="$(normalize_version_to_composer "${DP_VERSION}")"
+        RESOLVE_VERSION="$(normalize_version_to_composer "${DP_VERSION}")"
     fi
-
-    # Create a temporary CMS project to extract core versions.
-    cms_tmp_dir=$(mktemp -d)
-    if [ -n "$cms_install_version" ]; then
-        composer create-project -n --no-install "drupal/cms:$cms_install_version" "$cms_tmp_dir" >/dev/null 2>&1
-    else
-        composer create-project -n --no-install "drupal/cms" "$cms_tmp_dir" >/dev/null 2>&1
-    fi
-
-    # Configure permissive resolution.
-    composer -d "$cms_tmp_dir" config minimum-stability dev >/dev/null 2>&1
-    composer -d "$cms_tmp_dir" update --no-install --no-progress >/dev/null 2>&1
-    RESOLVE_VERSION=$(jq -r '.packages[] | select(.name=="drupal/core-recommended") | .version' "$cms_tmp_dir/composer.lock" | head -1)
-
-    rm -rf "$cms_tmp_dir"
-
-    # Resolve AI modules against core instead of CMS to bypass drupal_cms_ai.
-    RESOLVE_PROJECT="drupal/recommended-project"
-    log_info "Forcing dependencies: resolving AI against Core $RESOLVE_VERSION (bypassing CMS constraints)"
 else
-    # Standard resolution: follow CMS/core constraints directly.
-    if [ "$STARTER_TEMPLATE" = "cms" ]; then
-        RESOLVE_PROJECT="drupal/cms"
-        if [ -n "${DP_VERSION:-}" ]; then
-            RESOLVE_VERSION="$(normalize_version_to_composer "${DP_VERSION}")"
-        fi
-    else
-        RESOLVE_PROJECT="drupal/recommended-project"
-        if [ -n "${DP_VERSION:-}" ]; then
-            RESOLVE_VERSION="$(normalize_version_to_composer "${DP_VERSION}")"
-        fi
+    RESOLVE_PROJECT="drupal/recommended-project"
+    if [ -n "${DP_VERSION:-}" ]; then
+        RESOLVE_VERSION="$(normalize_version_to_composer "${DP_VERSION}")"
     fi
 fi
 
@@ -252,6 +221,8 @@ if [ "$AUTO_DETECT_VERSION" = "1" ]; then
     cd "$TMP_DIR"
     composer init --no-interaction --name="drupalpod/temp-resolver" --type="project"
     composer config minimum-stability dev
+    # Ensure Drupal contrib packages are resolvable in auto-detect mode.
+    composer config repositories.drupal composer https://packages.drupal.org/8
     # Add CMS/Core WITHOUT version constraint so Composer can choose compatible version
     composer require --no-update "$RESOLVE_PROJECT"
 else
@@ -293,11 +264,14 @@ if [ "$FORCE_DEPENDENCIES" = "1" ]; then
     configure_lenient_mode "${LENIENT_PACKAGES[@]}"
 
     # Warm up plugin installation so pre-pool rewrites are active during solve.
-    # Plugins must be actually installed (not just locked) to be activated.
-    # Install just the plugins first, then they'll be active for subsequent updates.
-    composer -n update --no-progress \
-        mglaman/composer-drupal-lenient \
-        drupalpod/ai-lenient-plugin
+    # If no lock exists yet, Composer disallows partial updates; run a full update.
+    if [ -f composer.lock ]; then
+        composer -n update --no-progress \
+            mglaman/composer-drupal-lenient \
+            drupalpod/ai-lenient-plugin
+    else
+        composer -n update --no-progress
+    fi
 
     # Verify plugins are installed.
     if [ ! -d "vendor/drupalpod/ai-lenient-plugin" ]; then

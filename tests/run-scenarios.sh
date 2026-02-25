@@ -60,7 +60,7 @@ run_scenario() {
     export DP_TEST_MODULE_ISSUE_FORK=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE_ISSUE_FORK // ""')
     export DP_TEST_MODULE_ISSUE_BRANCH=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE_ISSUE_BRANCH // ""')
     export DP_AI_MODULES=$(echo "$scenario_json" | jq -r '.env.DP_AI_MODULES // ""')
-    export DP_FORCE_DEPENDENCIES=$(echo "$scenario_json" | jq -r '.env.DP_FORCE_DEPENDENCIES // "0"')
+    export DP_FORCE_DEPENDENCIES=$(echo "$scenario_json" | jq -r '.env.DP_FORCE_DEPENDENCIES // "1"')
     RUN_CLONE=$(echo "$scenario_json" | jq -r '.env.run_clone // false')
 
     # Create test-specific log directory

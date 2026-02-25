@@ -114,7 +114,7 @@ composer config extra.composer-exit-on-patch-failure false
 
 # Enable lenient mode by default for QA workflows.
 # Set DP_FORCE_DEPENDENCIES=0 to enable strict compatibility checking.
-if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
+if [ "${DP_FORCE_DEPENDENCIES}" = "1" ]; then
     # Relax ALL drupal/* packages to bypass version constraints
     # This allows incompatible module combinations to install for testing
     LENIENT_PACKAGES=("drupal/*")
@@ -131,7 +131,7 @@ composer config scripts.post-drupal-scaffold-cmd \
     "cd web/sites/default && test -z \"\$(grep 'include \\\$devpanel_settings;' settings.php)\" && patch -Np1 -r /dev/null < $APP_ROOT/.devpanel/drupal-settings.patch || :"
 
 # Enable the local AI lenient plugin (unless strict mode is requested).
-if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
+if [ "${DP_FORCE_DEPENDENCIES}" = "1" ]; then
     plugin_path="$PROJECT_ROOT/src/ai-lenient-plugin"
     if [ -d "$plugin_path" ]; then
         composer config --no-plugins repositories.ai-lenient-plugin \

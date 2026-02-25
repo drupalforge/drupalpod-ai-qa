@@ -79,6 +79,7 @@ fi
 # AI module PR testing (optional).
 export DP_AI_ISSUE_FORK=${DP_AI_ISSUE_FORK:-''}
 export DP_AI_ISSUE_BRANCH=${DP_AI_ISSUE_BRANCH:-''}
+export DP_FORCE_DEPENDENCIES=${DP_FORCE_DEPENDENCIES:-1}
 
 # Generic test module (optional - any module you're testing).
 export DP_TEST_MODULE=${DP_TEST_MODULE:-''}
@@ -146,7 +147,7 @@ require_issue_version "Test module" "DP_TEST_MODULE_VERSION" "DP_TEST_MODULE_ISS
 # Show final AI module configurations.
 echo "  AI Module Configuration:"
 echo "   - AI Base: $DP_AI_MODULE @ $DP_AI_MODULE_VERSION"
-echo "   - Force Dependencies: ${DP_FORCE_DEPENDENCIES:-1}"
+echo "   - Force Dependencies: ${DP_FORCE_DEPENDENCIES}"
 if [ -n "${DP_AI_ISSUE_BRANCH:-}" ]; then
     echo "     └─ Testing PR: $DP_AI_ISSUE_FORK/$DP_AI_ISSUE_BRANCH"
 fi
