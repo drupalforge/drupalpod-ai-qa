@@ -1,6 +1,7 @@
 # Drupal GitLab CI template baseline.
 # Layer 1 (smoke): fast matrix over scenarios-template-version.json (indexes 0-5).
-# Layer 2 (extended): full run over scenarios.json for broader coverage.
+# Layer 2 (resolution): parallel matrix over scenarios-drupal-resolution.json (indexes 0-13).
+# Layer 3 (extended): full run over scenarios.json for broader coverage.
 include:
   - project: $_GITLAB_TEMPLATES_REPO
     ref: $_GITLAB_TEMPLATES_REF
@@ -49,14 +50,39 @@ template-version-smoke:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
 
-scenario-matrix:
+drupal-resolution-matrix:
   stage: test
   image: registry.gitlab.com/drupal-infrastructure/drupalci/drupalci-environments/php-8.3-ubuntu-apache:production
+  parallel:
+    matrix:
+      - SCENARIO_INDEX: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"]
   before_script:
     - apt-get update
     - apt-get install -y --no-install-recommends bash jq git unzip
   script:
-    - bash tests/run-scenarios.sh tests/scenarios.json
+    - jq ".[${SCENARIO_INDEX}] | [.]" tests/scenarios-drupal-resolution.json > /tmp/scenario.json
+    - bash tests/run-scenarios.sh /tmp/scenario.json
+  artifacts:
+    when: always
+    paths:
+      - logs/
+    expire_in: 7 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
+scenario-matrix:
+  stage: test
+  image: registry.gitlab.com/drupal-infrastructure/drupalci/drupalci-environments/php-8.3-ubuntu-apache:production
+  parallel:
+    matrix:
+      - SCENARIO_INDEX: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29"]
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends bash jq git unzip
+  script:
+    - jq ".[${SCENARIO_INDEX}] | [.]" tests/scenarios.json > /tmp/scenario.json
+    - bash tests/run-scenarios.sh /tmp/scenario.json
   artifacts:
     when: always
     paths:

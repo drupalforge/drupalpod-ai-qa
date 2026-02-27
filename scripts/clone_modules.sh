@@ -4,13 +4,15 @@ set -eu -o pipefail
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Clone AI Modules from Git (Composer-resolved).
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# This script follows logs/ai-manifest.json:
+# - clone compatible modules for path-repo installation
+# - optionally clone skipped modules for local developer workflows
 
-# Load common utilities (skip if already loaded by parent script).
+# Load common utilities.
 if [ -z "${SCRIPT_DIR:-}" ]; then
     export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    source "$SCRIPT_DIR/lib/common.sh"
-    init_common
 fi
+source "$SCRIPT_DIR/lib/bootstrap.sh"
 require_jq
 
 cd "$PROJECT_ROOT"
@@ -20,6 +22,7 @@ export CLONED_MODULES=""
 export COMPATIBLE_MODULES=""
 
 # Override a resolved git ref with an explicit module version.
+# Resolver chooses compatibility; env overrides choose the exact checkout ref.
 override_git_version() {
     local module_name=$1
     local current_version=$2
@@ -41,85 +44,66 @@ clone_module() {
     local module_version=${2:-}
     local issue_fork=${3:-}
     local issue_branch=${4:-}
+    local repo_path="$PROJECT_ROOT/repos/$module_name"
+    local is_precloned_issue_module=0
 
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "Cloning: $module_name"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-    # Check if the module is already cloned.
-    if git submodule status repos/"$module_name" > /dev/null 2>&1; then
-        echo "  ✓ Submodule exists, updating..."
-         # Ensure local composer.json edits don't block checkouts.
-        if ! git -C "$PROJECT_ROOT/repos/$module_name" diff --quiet -- composer.json; then
-            git -C "$PROJECT_ROOT/repos/$module_name" checkout -- composer.json
+    if [ -n "${PRECLONED_ISSUE_MODULES:-}" ] && [ -n "$issue_fork" ] && [ -n "$issue_branch" ]; then
+        if echo ",$PRECLONED_ISSUE_MODULES," | grep -q ",$module_name,"; then
+            is_precloned_issue_module=1
         fi
-    else
-        echo "  + Adding as submodule..."
-        time git submodule add -f https://git.drupalcode.org/project/"$module_name".git repos/"$module_name"
-        time git config -f .gitmodules submodule."repos/$module_name".ignore dirty
     fi
 
-    # Sync the submodule to ensure it's initialized.
+    if [ "$is_precloned_issue_module" -eq 1 ] && [ -d "$repo_path/.git" ]; then
+        echo "  ✓ Issue module already pre-cloned for resolver, reusing checkout."
+        if [ -z "$CLONED_MODULES" ]; then
+            export CLONED_MODULES="$module_name"
+        else
+            export CLONED_MODULES="$CLONED_MODULES,$module_name"
+        fi
+        return
+    fi
+
     echo "  → Syncing submodule directory..."
-    time git submodule update --init --recursive repos/"$module_name"
-
-    # Navigate to module repo and fetch updates.
-    cd "$PROJECT_ROOT/repos/$module_name"
-    if ! git fetch origin --tags --prune; then
-        log_warn "git fetch origin failed (auth or network). Continuing with existing refs."
-    fi
+    time ensure_module_submodule "$module_name"
 
     # Validate that both issue branch and fork are provided together.
     if [ -n "$issue_branch" ] && [ -z "$issue_fork" ]; then
-        echo "ERROR: Issue branch specified for $module_name ($issue_branch) but no fork provided." >&2
-        echo "Set DP_AI_ISSUE_FORK or DP_TEST_MODULE_ISSUE_FORK." >&2
+        log_error "Issue branch specified for $module_name ($issue_branch) but no fork provided."
+        log_error "Set DP_AI_ISSUE_FORK or DP_TEST_MODULE_ISSUE_FORK."
         exit 1
     fi
 
     if [ -n "$issue_fork" ] && [ -z "$issue_branch" ]; then
-        echo "ERROR: Fork specified for $module_name ($issue_fork) but no issue branch provided." >&2
-        echo "Set DP_AI_ISSUE_BRANCH or DP_TEST_MODULE_ISSUE_BRANCH." >&2
+        log_error "Fork specified for $module_name ($issue_fork) but no issue branch provided."
+        log_error "Set DP_AI_ISSUE_BRANCH or DP_TEST_MODULE_ISSUE_BRANCH."
         exit 1
     fi
+
+    # Navigate to module repo and fetch updates.
+    cd "$PROJECT_ROOT/repos/$module_name"
+    fetch_module_remotes "$repo_path" "$issue_fork"
 
     # Determine checkout target: PR branch, specific version, or latest stable.
     if [ -n "$issue_branch" ] && [ -n "$issue_fork" ]; then
         echo "  → Checking out PR: $issue_fork/$issue_branch"
-        git remote add issue-"$issue_fork" https://git.drupalcode.org/issue/"$issue_fork".git 2>/dev/null || true
-        if ! git fetch issue-"$issue_fork"; then
-            log_warn "git fetch failed for issue-$issue_fork. Continuing with existing refs."
-        fi
-        if ! git show-ref --verify --quiet refs/remotes/issue-"$issue_fork"/"$issue_branch"; then
-            echo "ERROR: Branch $issue_branch not found on fork $issue_fork." >&2
+        if ! checkout_issue_branch "$repo_path" "$issue_fork" "$issue_branch"; then
             exit 1
         fi
-        git checkout -B "$issue_branch" issue-"$issue_fork"/"$issue_branch"
-        git branch --set-upstream-to=issue-"$issue_fork"/"$issue_branch" "$issue_branch" >/dev/null 2>&1 || true
     elif [ -n "$module_version" ]; then
         echo "  → Checking out version: $module_version"
-        if [[ "$module_version" == *.x ]]; then
-            if git show-ref --verify --quiet refs/remotes/origin/"$module_version"; then
-                git checkout -B "$module_version" origin/"$module_version"
-            else
-                echo "ERROR: Branch $module_version not found on origin." >&2
-                exit 1
-            fi
-        else
-            if git rev-parse tags/"$module_version" >/dev/null 2>&1; then
-                git checkout tags/"$module_version"
-            elif git show-ref --verify --quiet refs/remotes/origin/"$module_version"; then
-                git checkout -B "$module_version" origin/"$module_version"
-            else
-                echo "ERROR: Version $module_version not found on origin." >&2
-                exit 1
-            fi
+        if ! checkout_module_ref "$repo_path" "$module_version"; then
+            exit 1
         fi
     else
         echo "  → No version specified, checking out latest stable release"
-        latest_tag=$(git tag --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+        latest_tag=$(git -C "$repo_path" tag --sort=-version:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
         if [ -n "$latest_tag" ]; then
             echo "  → Found latest stable: $latest_tag"
-            git checkout tags/"$latest_tag"
+            git -C "$repo_path" checkout "tags/$latest_tag"
         else
             echo "  ⚠️ No tags found, using default branch"
         fi
@@ -157,8 +141,8 @@ is_cloned() {
 
 # The resolver writes a manifest file; cloning follows that plan.
 if [ ! -f "$MANIFEST_FILE" ]; then
-    echo "ERROR: Module manifest not found: $MANIFEST_FILE" >&2
-    echo "Run scripts/resolve_modules.sh before cloning." >&2
+    log_error "Module manifest not found: $MANIFEST_FILE"
+    log_error "Run scripts/resolve_modules.sh before cloning."
     exit 1
 fi
 
@@ -215,7 +199,7 @@ while read -r package version; do
 
     if [ -n "$issue_branch" ]; then
         if [ "$module_name" = "${DP_AI_MODULE}" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
-            if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
+            if [ "${DP_FORCE_DEPENDENCIES}" = "1" ]; then
                 continue
             fi
             alias_target="${DP_AI_MODULE_VERSION}-dev"

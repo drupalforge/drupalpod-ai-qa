@@ -1,5 +1,6 @@
 amazeeio
 argjson
+behaviour
 cset
 deepchat
 devpanel
@@ -11,7 +12,10 @@ klaro
 litellm
 ofer
 popperjs
+preclone
+precloned
 rateit
+relisten
 shaal
 textcounter
 tippyjs

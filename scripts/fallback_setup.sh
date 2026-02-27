@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
+# Load common utilities.
+if [ -z "${SCRIPT_DIR:-}" ]; then
+    export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+source "$SCRIPT_DIR/lib/bootstrap.sh"
+
 # Set defaults for DrupalPod AI QA.
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Drupal Starter Template Selection"
@@ -24,8 +30,7 @@ if [ -n "$DP_VERSION" ]; then
   echo "  → Version explicitly set: $DP_VERSION"
   echo "    Version: $DP_VERSION (explicit)"
 else
-  echo "  → No version specified, will use latest stable"
-  echo "    Version: latest stable (auto-detected)"
+  echo "  → No version specified, will auto-detect a compatible version"
 fi
 echo ""
 
@@ -79,6 +84,7 @@ fi
 # AI module PR testing (optional).
 export DP_AI_ISSUE_FORK=${DP_AI_ISSUE_FORK:-''}
 export DP_AI_ISSUE_BRANCH=${DP_AI_ISSUE_BRANCH:-''}
+export DP_FORCE_DEPENDENCIES=${DP_FORCE_DEPENDENCIES:-1}
 
 # Generic test module (optional - any module you're testing).
 export DP_TEST_MODULE=${DP_TEST_MODULE:-''}
@@ -121,32 +127,13 @@ if [ -n "${DP_AI_MODULES:-}" ]; then
     done
 fi
 
-# Function to validate issue version requirements.
-require_issue_version() {
-    local label="$1"
-    local version_var="$2"
-    local fork_var="$3"
-    local branch_var="$4"
-    local version_value="${!version_var:-}"
-    local fork_value="${!fork_var:-}"
-    local branch_value="${!branch_var:-}"
-
-    if [ -n "$fork_value" ] || [ -n "$branch_value" ]; then
-        if [ -z "$version_value" ]; then
-            echo "ERROR: $label PR testing requires $version_var when using $fork_var/$branch_var." >&2
-            exit 1
-        fi
-    fi
-}
-
 # Validate AI module and test module issue version requirements.
-require_issue_version "AI module" "DP_AI_MODULE_VERSION" "DP_AI_ISSUE_FORK" "DP_AI_ISSUE_BRANCH"
-require_issue_version "Test module" "DP_TEST_MODULE_VERSION" "DP_TEST_MODULE_ISSUE_FORK" "DP_TEST_MODULE_ISSUE_BRANCH"
+validate_issue_version_requirements
 
 # Show final AI module configurations.
 echo "  AI Module Configuration:"
 echo "   - AI Base: $DP_AI_MODULE @ $DP_AI_MODULE_VERSION"
-echo "   - Force Dependencies: ${DP_FORCE_DEPENDENCIES:-0}"
+echo "   - Force Dependencies: ${DP_FORCE_DEPENDENCIES}"
 if [ -n "${DP_AI_ISSUE_BRANCH:-}" ]; then
     echo "     └─ Testing PR: $DP_AI_ISSUE_FORK/$DP_AI_ISSUE_BRANCH"
 fi

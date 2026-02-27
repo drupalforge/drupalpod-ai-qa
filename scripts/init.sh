@@ -12,14 +12,15 @@ set -eu -o pipefail
 : "${DP_VSCODE_EXTENSIONS:=}"
 : "${DP_INSTALL_PROFILE:=}"
 : "${DP_AI_VIRTUAL_KEY:=}"
+: "${DP_NO_DEV:=}"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Directory Setup (works in both DDEV and GitHub Actions environments).
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Load common utilities.
 export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
-init_common
+source "$SCRIPT_DIR/lib/bootstrap.sh"
+source "$SCRIPT_DIR/lib/resolve_mode.sh"
 
 # APP_ROOT is set by environment (DDEV or GitHub Actions) as the repo root.
 # COMPOSER_ROOT points to the composer root (docroot/).
@@ -31,9 +32,91 @@ exec > >(tee "$LOG_FILE") 2>&1
 TIMEFORMAT=%lR
 export COMPOSER_NO_AUDIT=1
 
+# Prevent concurrent init runs against the same workspace.
+exec 200>"$LOG_DIR/init.lock"
+if ! flock -n 200; then
+  log_error "Another init.sh run is already in progress."
+  exit 1
+fi
+
 # Source fallback setup. This script sets default
 # env vars if they are missing.
 source "$SCRIPT_DIR/fallback_setup.sh"
+
+run_preflight_checks() {
+  local missing=0
+  local cmd=""
+  for cmd in git composer jq; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      log_error "Missing required command: $cmd"
+      missing=1
+    fi
+  done
+  if [ "$missing" -ne 0 ]; then
+    exit 1
+  fi
+
+  if command -v curl >/dev/null 2>&1; then
+    if ! curl -sf --max-time 10 https://packages.drupal.org/8/packages.json >/dev/null; then
+      log_error "Cannot reach packages.drupal.org (network/repository unavailable)."
+      exit 1
+    fi
+  fi
+}
+
+run_preflight_checks
+
+# High-level flow:
+# 1) Pre-clone issue forks so resolver can see local branch code.
+# 2) Resolve a compatible module/CMS plan into logs/ai-manifest.json.
+# 3) Clone module repos for local path-repo usage.
+# 4) Build/update Composer project, then install Drupal and enable modules.
+
+# Pre-clone issue-fork modules so resolver can use path repositories
+# and resolve against the exact branch code under test.
+preclone_issue_module() {
+  local module_name=$1
+  local issue_fork=$2
+  local issue_branch=$3
+  local repo_dir="$PROJECT_ROOT/repos/$module_name"
+  local issue_version=""
+
+  [ -n "$module_name" ] || return 0
+  [ -n "$issue_fork" ] || return 0
+  [ -n "$issue_branch" ] || return 0
+
+  ensure_module_submodule "$module_name"
+  fetch_module_remotes "$repo_dir" "$issue_fork"
+  if ! checkout_issue_branch "$repo_dir" "$issue_fork" "$issue_branch"; then
+    log_error "Issue branch $issue_branch not found for $module_name on fork $issue_fork."
+    exit 1
+  fi
+
+  # Make path-repo resolution honour explicitly requested module version.
+  # Without this, a branch like 1.x reports 1.x-dev and conflicts with exact
+  # constraints such as 1.0.7 during resolver require.
+  if [ "$module_name" = "${DP_AI_MODULE:-}" ]; then
+    issue_version="$(normalize_version_to_composer "${DP_AI_MODULE_VERSION:-}")"
+  elif [ "$module_name" = "${DP_TEST_MODULE:-}" ]; then
+    issue_version="$(normalize_version_to_composer "${DP_TEST_MODULE_VERSION:-}")"
+  fi
+
+  if [ -n "$issue_version" ] && [ "$issue_version" != "*" ] && [ -f "$repo_dir/composer.json" ] && command -v jq >/dev/null 2>&1; then
+    log_info "Applying issue module version for resolver: $module_name -> $issue_version"
+    jq --arg version "$issue_version" '.version = $version' \
+      "$repo_dir/composer.json" > "$repo_dir/composer.json.tmp" \
+      && mv "$repo_dir/composer.json.tmp" "$repo_dir/composer.json"
+  fi
+
+  if [ -z "${PRECLONED_ISSUE_MODULES:-}" ]; then
+    export PRECLONED_ISSUE_MODULES="$module_name"
+  elif ! echo ",$PRECLONED_ISSUE_MODULES," | grep -q ",$module_name,"; then
+    export PRECLONED_ISSUE_MODULES="$PRECLONED_ISSUE_MODULES,$module_name"
+  fi
+}
+
+preclone_issue_module "${DP_AI_MODULE:-}" "${DP_AI_ISSUE_FORK:-}" "${DP_AI_ISSUE_BRANCH:-}"
+preclone_issue_module "${DP_TEST_MODULE:-}" "${DP_TEST_MODULE_ISSUE_FORK:-}" "${DP_TEST_MODULE_ISSUE_BRANCH:-}"
 
 # Resolve module versions via Composer first to ensure
 # what we are testing works together, unless explicit
@@ -88,19 +171,65 @@ rm -rf lost+found 2>/dev/null || true
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Composer setup
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# composer_setup.sh creates/refreshes the CMS/Core project from the resolved
+# manifest and wires local repos as Composer path repositories.
 if [ "${DP_REBUILD:-0}" = "1" ] || [ ! -f composer.json ]; then
   source "$SCRIPT_DIR/composer_setup.sh"
 else
-  composer show --locked cweagans/composer-patches ^2 &>/dev/null && composer prl
+  # Skip patch-relisten (composer prl) unless composer.lock has changed since the
+  # last run. Patch re-reading is expensive and unnecessary when dependencies are stable.
+  if composer show --locked cweagans/composer-patches ^2 &>/dev/null; then
+    PRL_MARKER="$LOG_DIR/last-prl-run"
+    if [ ! -f "$PRL_MARKER" ] || [ composer.lock -nt "$PRL_MARKER" ]; then
+      composer prl
+      touch "$PRL_MARKER"
+    fi
+  fi
 fi
 
-# Ensure dependencies are installed.
-echo 'Running composer update...'
-time composer -n update --prefer-dist --no-progress || {
-  echo "Composer update encountered errors (likely patch failures), but continuing..."
-  echo "Regenerating autoload files..."
-  composer dump-autoload
-}
+# Optionally skip dev dependencies (PHPStan, testing tools, etc.) for faster
+# installs when development tooling isn't required. Enable with DP_NO_DEV=1.
+COMPOSER_DEV_FLAG=""
+if [ "${DP_NO_DEV:-0}" = "1" ]; then
+  COMPOSER_DEV_FLAG="--no-dev"
+  echo "Skipping dev dependencies (DP_NO_DEV=1)..."
+fi
+
+COMPOSER_INSTALL_EXIT=0
+COMPOSER_INSTALL_OUT=""
+if [ -f composer.lock ]; then
+  echo 'Running composer install...'
+  set +e
+  COMPOSER_INSTALL_OUT=$(time composer -n install --prefer-dist --no-progress $COMPOSER_DEV_FLAG 2>&1)
+  COMPOSER_INSTALL_EXIT=$?
+  set -e
+  echo "$COMPOSER_INSTALL_OUT"
+fi
+
+if [ ! -f composer.lock ] || [ "$COMPOSER_INSTALL_EXIT" -ne 0 ]; then
+  if [ -f composer.lock ]; then
+    echo "Composer install failed (exit=$COMPOSER_INSTALL_EXIT), falling back to composer update..."
+  else
+    echo 'No composer.lock found, running composer update...'
+  fi
+
+  set +e
+  COMPOSER_UPDATE_OUT=$(time composer -n update --prefer-dist --no-progress $COMPOSER_DEV_FLAG 2>&1)
+  COMPOSER_UPDATE_EXIT=$?
+  set -e
+  echo "$COMPOSER_UPDATE_OUT"
+
+  if [ "$COMPOSER_UPDATE_EXIT" -ne 0 ]; then
+    COMPOSER_UPDATE_CLASSIFICATION=$(classify_composer_failure "$COMPOSER_UPDATE_OUT")
+    if [ "$COMPOSER_UPDATE_EXIT" -eq 2 ] && [ "$COMPOSER_UPDATE_CLASSIFICATION" = "dependency_conflict" ]; then
+      echo "Composer update failed (exit=$COMPOSER_UPDATE_EXIT, classification=$COMPOSER_UPDATE_CLASSIFICATION). Stopping."
+      exit 1
+    fi
+
+    echo "Composer update failed (exit=$COMPOSER_UPDATE_EXIT, classification=$COMPOSER_UPDATE_CLASSIFICATION). Stopping."
+    exit 1
+  fi
+fi
 
 if [ -n "${DP_ALIAS_MODULES:-}" ]; then
   echo

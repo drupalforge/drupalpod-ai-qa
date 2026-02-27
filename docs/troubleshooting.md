@@ -28,6 +28,37 @@ Check `logs/init-*.log` for detailed output. Common issues:
 - Composer dependency conflicts
 - Database connection problems
 
+## Lenient mode not working
+
+If you see errors like:
+```
+drupal/ai_context dev-1.0.x requires drupal/ai ^1.3 -> conflicts with your root composer.json require (2.0.x-dev)
+```
+
+Even with `DP_FORCE_DEPENDENCIES=1`, the lenient plugin might not be activated. Check:
+
+1. **Plugin is installed to vendor/:**
+   ```bash
+   ls -la /tmp/tmp.*/vendor/drupalpod/ai-lenient-plugin
+   ```
+
+2. **No `--no-install` flag in plugin warm-up** (fixed in resolve_modules.sh):
+   ```bash
+   # Broken:
+   composer update --no-install mglaman/composer-drupal-lenient drupalpod/ai-lenient-plugin
+
+   # Fixed:
+   composer update mglaman/composer-drupal-lenient drupalpod/ai-lenient-plugin
+   ```
+
+3. **Environment variables are set:**
+   ```bash
+   echo $DP_FORCE_DEPENDENCIES  # Should be "1"
+   echo $DP_LENIENT_PACKAGES    # Should contain package patterns
+   ```
+
+The plugin must be extracted to `vendor/` (not just locked) for Composer to load and activate it.
+
 ## Debugging version detection
 
 ```bash

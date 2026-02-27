@@ -60,7 +60,7 @@ run_scenario() {
     export DP_TEST_MODULE_ISSUE_FORK=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE_ISSUE_FORK // ""')
     export DP_TEST_MODULE_ISSUE_BRANCH=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE_ISSUE_BRANCH // ""')
     export DP_AI_MODULES=$(echo "$scenario_json" | jq -r '.env.DP_AI_MODULES // ""')
-    export DP_FORCE_DEPENDENCIES=$(echo "$scenario_json" | jq -r '.env.DP_FORCE_DEPENDENCIES // "0"')
+    export DP_FORCE_DEPENDENCIES=$(echo "$scenario_json" | jq -r '.env.DP_FORCE_DEPENDENCIES // "1"')
     RUN_CLONE=$(echo "$scenario_json" | jq -r '.env.run_clone // false')
 
     # Create test-specific log directory
@@ -126,6 +126,25 @@ run_scenario() {
     # If expected to succeed, validate the plan
     if [ "$should_succeed" = "true" ] && [ "$ACTUAL_SUCCESS" = "true" ] && [ -f "$DP_MODULE_MANIFEST" ]; then
 
+        # Check resolution mode
+        local expected_mode=$(echo "$scenario_json" | jq -r '.expect.resolution_mode // ""')
+        if [ -n "$expected_mode" ]; then
+            local actual_mode=$(jq -r '.resolution_mode // ""' "$DP_MODULE_MANIFEST")
+            if [ "$actual_mode" = "$expected_mode" ]; then
+                local mode_name=""
+                case "$actual_mode" in
+                    1) mode_name="MODE_AI_PINNED" ;;
+                    2) mode_name="MODE_CMS_PINNED" ;;
+                    3) mode_name="MODE_AUTO" ;;
+                    4) mode_name="MODE_AI_AND_CMS_PINNED" ;;
+                esac
+                echo -e "  ${GREEN}✓ Resolution mode: $actual_mode ($mode_name)${NC}"
+            else
+                echo -e "  ${RED}✗ Resolution mode mismatch: got '$actual_mode', expected '$expected_mode'${NC}"
+                test_passed=false
+            fi
+        fi
+
         # Check manifest metadata: starter template.
         local has_expected_template=false
         if echo "$scenario_json" | jq -e '.expect | has("manifest_starter_template")' > /dev/null 2>&1; then
@@ -162,18 +181,18 @@ run_scenario() {
             fi
         fi
 
-        # Check resolved base project package/version in manifest.
-        local has_project_version_pattern=false
-        if echo "$scenario_json" | jq -e '.expect | has("project_version_pattern")' > /dev/null 2>&1; then
-            has_project_version_pattern=true
+        # Check resolved Drupal CMS/Core version in manifest.
+        local has_drupal_version_pattern=false
+        if echo "$scenario_json" | jq -e '.expect | has("drupal_version_pattern")' > /dev/null 2>&1; then
+            has_drupal_version_pattern=true
         fi
-        if [ "$has_project_version_pattern" = "true" ]; then
-            local project_version_pattern=$(echo "$scenario_json" | jq -r '.expect.project_version_pattern')
-            local actual_project_version=$(jq -r '.resolved_project_version // ""' "$DP_MODULE_MANIFEST")
-            if [ -n "$actual_project_version" ] && echo "$actual_project_version" | grep -E "$project_version_pattern" > /dev/null; then
-                echo -e "  ${GREEN}✓ Resolved project version matches: $actual_project_version ~ $project_version_pattern${NC}"
+        if [ "$has_drupal_version_pattern" = "true" ]; then
+            local drupal_version_pattern=$(echo "$scenario_json" | jq -r '.expect.drupal_version_pattern')
+            local actual_drupal_version=$(jq -r '.resolved_project_version // ""' "$DP_MODULE_MANIFEST")
+            if [ -n "$actual_drupal_version" ] && echo "$actual_drupal_version" | grep -E "$drupal_version_pattern" > /dev/null; then
+                echo -e "  ${GREEN}✓ Resolved Drupal version matches: $actual_drupal_version ~ $drupal_version_pattern${NC}"
             else
-                echo -e "  ${RED}✗ Resolved project version mismatch: '$actual_project_version' !~ '$project_version_pattern'${NC}"
+                echo -e "  ${RED}✗ Resolved Drupal version mismatch: '$actual_drupal_version' !~ '$drupal_version_pattern'${NC}"
                 test_passed=false
             fi
         fi

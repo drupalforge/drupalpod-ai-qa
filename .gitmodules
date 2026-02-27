@@ -17,6 +17,18 @@
 [submodule "repos/ai_seo"]
 	path = repos/ai_seo
 	url = https://git.drupalcode.org/project/ai_seo.git
-[submodule "repos/embedded_content"]
-	path = repos/embedded_content
-	url = https://git.drupalcode.org/project/embedded_content.git
+[submodule "repos/ai_context"]
+	path = repos/ai_context
+	url = https://git.drupalcode.org/project/ai_context.git
+	ignore = dirty
+[submodule "/var/www/html/repos/ai_seo"]
+	path = /var/www/html/repos/ai_seo
+	url = https://git.drupalcode.org/project/ai_seo.git
+	ignore = dirty
+[submodule "/var/www/html/repos/cms"]
+	path = /var/www/html/repos/cms
+	url = https://git.drupalcode.org/project/cms.git
+	ignore = dirty
+[submodule "/var/www/html/repos/ai_image_alt_text"]
+	path = /var/www/html/repos/ai_image_alt_text
+	url = https://git.drupalcode.org/project/ai_image_alt_text.git

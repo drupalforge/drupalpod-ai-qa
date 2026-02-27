@@ -6,13 +6,14 @@ set -eu -o pipefail
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # This script creates a new Drupal project (CMS or Core), configures it,
 # and adds AI modules as path repositories.
+# It intentionally consumes resolver output (manifest) instead of deciding
+# compatibility again, so install and resolve stay in sync.
 
-# Load common utilities (skip if already loaded by parent script).
+# Load common utilities.
 if [ -z "${SCRIPT_DIR:-}" ]; then
     export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    source "$SCRIPT_DIR/lib/common.sh"
-    init_common
 fi
+source "$SCRIPT_DIR/lib/bootstrap.sh"
 
 cd "$COMPOSER_ROOT"
 
@@ -35,7 +36,24 @@ else
 fi
 
 if [ -n "${DP_VERSION:-}" ]; then
+    # User specified explicit version
     INSTALL_VERSION="$(normalize_version_to_composer "${DP_VERSION}")"
+else
+    # Auto-detect: use exact version resolved by resolve_modules.sh.
+    if [ -f "$MANIFEST_FILE" ]; then
+        if [ "$STARTER_TEMPLATE" = "cms" ]; then
+            # For CMS, use resolved CMS version if available
+            RESOLVED_VERSION=$(jq -r '.resolved_cms_version // ""' "$MANIFEST_FILE")
+        else
+            # For Core, use resolved core version if available
+            RESOLVED_VERSION=$(jq -r '.resolved_core_version // ""' "$MANIFEST_FILE")
+        fi
+
+        if [ -n "$RESOLVED_VERSION" ] && [ "$RESOLVED_VERSION" != "null" ] && [[ "$RESOLVED_VERSION" != *no-version-set* ]]; then
+            INSTALL_VERSION="$RESOLVED_VERSION"
+            log_info "Using auto-detected version from manifest: $INSTALL_VERSION"
+        fi
+    fi
 fi
 
 export COMPOSER_PROJECT
@@ -55,9 +73,10 @@ rm -rf temp-composer-files
 
 # Create the project template in temp directory.
 if [ -n "$INSTALL_VERSION" ]; then
-    time composer create-project --prefer-dist -n --no-install "$COMPOSER_PROJECT":"$INSTALL_VERSION" temp-composer-files
+    time composer create-project --no-plugins --prefer-dist -n --no-install "$COMPOSER_PROJECT":"$INSTALL_VERSION" temp-composer-files
 else
-    time composer create-project --prefer-dist -n --no-install "$COMPOSER_PROJECT" temp-composer-files
+    # No version specified and no manifest - use latest
+    time composer create-project --no-plugins --prefer-dist -n --no-install "$COMPOSER_PROJECT" temp-composer-files
 fi
 
 # Copy all files (including hidden files) from temp to docroot.
@@ -67,12 +86,13 @@ cp -r temp-composer-files/. .
 rm -rf temp-composer-files
 
 # Programmatically fix Composer 2.2 allow-plugins to avoid errors.
-# IMPORTANT: Do this FIRST before any other composer config commands to avoid warnings.
+# IMPORTANT: Do this first so later Composer commands can execute non-interactively.
 ALLOWED_PLUGINS=(
     "composer/installers:true"
     "drupal/core-project-message:true"
     "drupal/core-vendor-hardening:true"
     "drupal/core-composer-scaffold:true"
+    "drupal/site_template_helper:true"
     "dealerdirect/phpcodesniffer-composer-installer:true"
     "phpstan/extension-installer:true"
     "mglaman/composer-drupal-lenient:true"
@@ -94,45 +114,52 @@ composer config minimum-stability dev
 # Allow patches to fail without stopping installation.
 composer config extra.composer-exit-on-patch-failure false
 
-# If forcing dependencies, enable lenient mode so explicit AI versions can
-# bypass CMS/core constraints during the actual install.
-if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ] && [ -n "${DP_AI_MODULE_VERSION:-}" ]; then
-    LENIENT_PACKAGES=()
-    LENIENT_PACKAGES+=("drupal/${DP_AI_MODULE:-ai}")
-    if [ -n "${DP_TEST_MODULE:-}" ]; then
-        LENIENT_PACKAGES+=("drupal/${DP_TEST_MODULE}")
-    fi
+# Configure lenient mode only when resolver explicitly provided a package list.
+if [ "${DP_FORCE_DEPENDENCIES}" = "1" ] && [ -n "${DP_LENIENT_PACKAGES:-}" ]; then
+    IFS=',' read -ra LENIENT_PACKAGES <<< "$DP_LENIENT_PACKAGES"
     configure_lenient_mode "${LENIENT_PACKAGES[@]}"
 fi
 
 # Scaffold settings.php.
 composer config --json extra.drupal-scaffold.file-mapping '{"[web-root]/sites/default/settings.php":{"path":"web/core/assets/scaffold/files/default.settings.php","overwrite":false}}'
 composer config scripts.post-drupal-scaffold-cmd \
-    "cd web/sites/default && test -z \"\$(grep 'include \\\$devpanel_settings;' settings.php)\" && patch -Np1 -r /dev/null < $APP_ROOT/.devpanel/drupal-settings.patch || :"
+    "cd web/sites/default && test -z \"\$(grep 'include \\\$devpanel_settings;' settings.php)\" && patch -Np1 -r /dev/null < \"$PROJECT_ROOT/.devpanel/drupal-settings.patch\" || :"
 
-# If forcing dependencies, enable the local AI lenient plugin.
-if [ "${DP_FORCE_DEPENDENCIES:-0}" = "1" ]; then
+# Enable the local AI lenient plugin only when lenient package list is set.
+if [ "${DP_FORCE_DEPENDENCIES}" = "1" ] && [ -n "${DP_LENIENT_PACKAGES:-}" ]; then
     plugin_path="$PROJECT_ROOT/src/ai-lenient-plugin"
     if [ -d "$plugin_path" ]; then
         composer config --no-plugins repositories.ai-lenient-plugin \
             "{\"type\": \"path\", \"url\": \"$plugin_path\", \"options\": {\"symlink\": true}}"
         composer require --prefer-dist -n --no-progress "drupalpod/ai-lenient-plugin:*@dev"
+
+        # Ensure lenient plugins are installed/active before the main solve.
+        # Without this warm-up step, the first full update can run before
+        # plugin constraint rewriting takes effect for forced combinations.
+        composer -n update --no-progress \
+            mglaman/composer-drupal-lenient \
+            drupalpod/ai-lenient-plugin
     fi
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # AI MODULES FROM GIT (Path Repositories)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Add path repositories for all resolved AI modules
-# All modules must be compatible (resolved via Composer dependency resolution)
+# Add path repositories only for modules marked compatible in the manifest.
+# skipped/incompatible modules are cloned for convenience but not required here.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 if [ -n "${COMPATIBLE_MODULES:-}" ]; then
     echo "Adding path repositories for AI modules..."
 
+    # Batch all require operations into a single composer invocation to avoid
+    # repeated composer.json read/write cycles (each require call locks, parses,
+    # modifies, validates, and writes composer.json separately).
+    declare -a require_args=()
+
     IFS=',' read -ra MODULES <<< "$COMPATIBLE_MODULES"
     for module in "${MODULES[@]}"; do
-        module=$(echo "$module" | xargs)  # Trim whitespace
+        module="${module// /}"
 
         if [ -z "$module" ]; then
             continue
@@ -144,10 +171,13 @@ if [ -n "${COMPATIBLE_MODULES:-}" ]; then
             composer config --no-plugins repositories."$module"-git \
                 "{\"type\": \"path\", \"url\": \"$repo_path\", \"options\": {\"symlink\": true}}"
 
-            # Require from path (use *@dev to accept version from module's composer.json).
-            composer require --prefer-dist -n --no-update "drupal/$module:*@dev"
+            require_args+=("drupal/$module:*@dev")
         fi
     done
+
+    if [ "${#require_args[@]}" -gt 0 ]; then
+        composer require --prefer-dist -n --no-update "${require_args[@]}"
+    fi
 
     echo "Path repositories added for AI modules!"
 fi
@@ -157,237 +187,15 @@ fi
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 if [ "$STARTER_TEMPLATE" = "cms" ]; then
-    echo "Adding CMS dependencies (full setup with webform libraries)..."
-
-    # Add JavaScript library repositories for Webform support.
-    composer config repositories.tippyjs '{
-        "type": "package",
-        "package": {
-            "name": "tippyjs/tippyjs",
-            "version": "6.3.7",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "tippyjs"
-            },
-            "dist": {
-                "url": "https://registry.npmjs.org/tippy.js/-/tippy.js-6.3.7.tgz",
-                "type": "tar"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories.tabby '{
-        "type": "package",
-        "package": {
-            "name": "tabby/tabby",
-            "version": "12.0.3",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "tabby"
-            },
-            "dist": {
-                "url": "https://github.com/cferdinandi/tabby/archive/refs/tags/v12.0.3.zip",
-                "type": "zip"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories.signature_pad '{
-        "type": "package",
-        "package": {
-            "name": "signature_pad/signature_pad",
-            "version": "2.3.0",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "signature_pad"
-            },
-            "dist": {
-                "url": "https://github.com/szimek/signature_pad/archive/refs/tags/v2.3.0.zip",
-                "type": "zip"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories.progress-tracker '{
-        "type": "package",
-        "package": {
-            "name": "progress-tracker/progress-tracker",
-            "version": "2.0.7",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "progress-tracker"
-            },
-            "dist": {
-                "url": "https://github.com/NigelOToole/progress-tracker/archive/refs/tags/2.0.7.zip",
-                "type": "zip"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories.popperjs '{
-        "type": "package",
-        "package": {
-            "name": "popperjs/popperjs",
-            "version": "2.11.6",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "popperjs"
-            },
-            "dist": {
-                "url": "https://registry.npmjs.org/@popperjs/core/-/core-2.11.6.tgz",
-                "type": "tar"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories."jquery.timepicker" '{
-        "type": "package",
-        "package": {
-            "name": "jquery/timepicker",
-            "version": "1.14.0",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "jquery.timepicker"
-            },
-            "dist": {
-                "url": "https://github.com/jonthornton/jquery-timepicker/archive/refs/tags/1.14.0.zip",
-                "type": "zip"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories."jquery.textcounter" '{
-        "type": "package",
-        "package": {
-            "name": "jquery/textcounter",
-            "version": "0.9.1",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "jquery.textcounter"
-            },
-            "dist": {
-                "url": "https://github.com/ractoon/jQuery-Text-Counter/archive/refs/tags/0.9.1.zip",
-                "type": "zip"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories."jquery.select2" '{
-        "type": "package",
-        "package": {
-            "name": "jquery/select2",
-            "version": "4.0.13",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "jquery.select2"
-            },
-            "dist": {
-                "url": "https://github.com/select2/select2/archive/refs/tags/4.0.13.zip",
-                "type": "zip"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories."jquery.rateit" '{
-        "type": "package",
-        "package": {
-            "name": "jquery/rateit",
-            "version": "1.1.5",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "jquery.rateit"
-            },
-            "dist": {
-                "url": "https://github.com/gjunge/rateit.js/archive/refs/tags/1.1.5.zip",
-                "type": "zip"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories."jquery.intl-tel-input" '{
-        "type": "package",
-        "package": {
-            "name": "jquery/intl-tel-input",
-            "version": "17.0.19",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "jquery.intl-tel-input"
-            },
-            "dist": {
-                "url": "https://github.com/jackocnr/intl-tel-input/archive/refs/tags/v17.0.19.zip",
-                "type": "zip"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories."jquery.inputmask" '{
-        "type": "package",
-        "package": {
-            "name": "jquery/inputmask",
-            "version": "5.0.9",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "jquery.inputmask"
-            },
-            "dist": {
-                "url": "https://github.com/RobinHerbots/jquery.inputmask/archive/refs/tags/5.0.9.zip",
-                "type": "zip"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    composer config repositories.codemirror '{
-        "type": "package",
-        "package": {
-            "name": "codemirror/codemirror",
-            "version": "5.65.12",
-            "type": "drupal-library",
-            "extra": {
-                "installer-name": "codemirror"
-            },
-            "dist": {
-                "url": "https://github.com/components/codemirror/archive/refs/tags/5.65.12.zip",
-                "type": "zip"
-            },
-            "license": "MIT"
-        }
-    }'
-
-    # Require all CMS dependencies (Webform libraries only - AI modules come from git).
-    composer require --prefer-dist -n --no-update --dev \
-        cweagans/composer-patches:^2@beta \
-        codemirror/codemirror \
-        jquery/inputmask \
-        jquery/intl-tel-input \
-        jquery/rateit \
-        jquery/select2 \
-        jquery/textcounter \
-        jquery/timepicker \
-        popperjs/popperjs \
-        progress-tracker/progress-tracker \
-        signature_pad/signature_pad \
-        tabby/tabby \
-        tippyjs/tippyjs
+    echo "Using CMS dependencies from drupal/cms template..."
 
 else
-    echo "Adding Core AI dependencies (lean setup for quick PR/issue testing)..."
+    echo "Adding Core AI dependencies..."
 
     # Core variant: Search only - AI modules come from git via path repos.
     # Core template does not include drush by default, so we add it here.
     composer require --prefer-dist -n --no-update \
         drush/drush \
-        cweagans/composer-patches:^2@beta \
         drupal/search_api \
         drupal/search_api_db \
         drupal/token

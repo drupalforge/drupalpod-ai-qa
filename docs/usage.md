@@ -16,8 +16,9 @@ web_environment:
   - DP_TEST_MODULE_VERSION=
   - DP_TEST_MODULE_ISSUE_FORK=
   - DP_TEST_MODULE_ISSUE_BRANCH=
-  - DP_FORCE_DEPENDENCIES=0
+  - DP_FORCE_DEPENDENCIES=1
   - DP_REBUILD=1
+  - DP_NO_DEV=0
 ```
 
 Apply changes:
@@ -47,7 +48,8 @@ DP_TEST_MODULE=
 DP_TEST_MODULE_VERSION=
 DP_TEST_MODULE_ISSUE_FORK=
 DP_TEST_MODULE_ISSUE_BRANCH=
-DP_FORCE_DEPENDENCIES=0
+DP_FORCE_DEPENDENCIES=1
+DP_NO_DEV=0
 ```
 
 ## Flow (High-Level)
@@ -79,3 +81,4 @@ Common variables:
 - `DP_AI_MODULES`: allowlisted extra modules (see `README.md`)
 - `DP_TEST_MODULE`: module under test (optional)
 - `DP_FORCE_DEPENDENCIES`: `1` to relax `drupal/ai` constraints via local plugin
+- `DP_NO_DEV`: `1` to skip dev dependencies for faster installs

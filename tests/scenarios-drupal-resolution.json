@@ -1,0 +1,264 @@
+[
+  {
+    "name": "MODE_AUTO (3): Full auto-detection CMS",
+    "description": "Neither CMS nor AI pinned - should resolve to latest stable versions",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 3,
+      "manifest_starter_template": "cms",
+      "project_package": "drupal/cms",
+      "comment": "MODE_AUTO - both CMS and AI auto-detect to latest stable"
+    }
+  },
+  {
+    "name": "MODE_AUTO (3): Full auto-detection Core",
+    "description": "Neither CMS nor AI pinned on Core template",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 3,
+      "manifest_starter_template": "core",
+      "project_package": "drupal/core-recommended",
+      "comment": "MODE_AUTO - Core and AI auto-detect"
+    }
+  },
+  {
+    "name": "MODE_CMS_PINNED (2): CMS 1.x forces AI 1.x",
+    "description": "CMS pinned to 1.x, AI should auto-detect to 1.x",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 2,
+      "drupal_version_pattern": "^1\\.",
+      "ai_version_pattern": "^1\\.",
+      "comment": "MODE_CMS_PINNED - CMS 1.x constrains AI to 1.x"
+    }
+  },
+  {
+    "name": "MODE_CMS_PINNED (2): CMS 2.x forces AI 2.x",
+    "description": "CMS pinned to 2.x, AI should auto-detect to 2.x",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "2.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 2,
+      "drupal_version_pattern": "^(dev-)?2\\.",
+      "comment": "MODE_CMS_PINNED - CMS 2.x should resolve AI 2.x"
+    }
+  },
+  {
+    "name": "MODE_CMS_PINNED (2): CMS 1.2.9 resolves AI 1.x",
+    "description": "Specific CMS release pinned, AI floats",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.2.9",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 2,
+      "drupal_version_pattern": "^1\\.2\\.9",
+      "ai_version_pattern": "^1\\.",
+      "comment": "MODE_CMS_PINNED - Specific release"
+    }
+  },
+  {
+    "name": "MODE_CMS_PINNED (2): Core 11.x auto-detects AI",
+    "description": "Core pinned, AI should auto-detect compatible version",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "11.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 2,
+      "drupal_version_pattern": "^11\\.",
+      "comment": "MODE_CMS_PINNED - Core 11.x with AI auto"
+    }
+  },
+  {
+    "name": "MODE_CMS_PINNED (2): Core 10.4.x auto-detects AI",
+    "description": "Older Core pinned",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "10.4.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 2,
+      "drupal_version_pattern": "^10\\.",
+      "comment": "MODE_CMS_PINNED - Core 10.6 (10.4.x-dev resolves to latest 10.x)"
+    }
+  },
+  {
+    "name": "MODE_AI_PINNED (1): AI 1.2.5 auto-detects CMS",
+    "description": "AI pinned, CMS should auto-detect compatible version",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "1.2.5",
+      "DP_AI_MODULES": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 1,
+      "ai_version_pattern": "^1\\.2\\.5",
+      "comment": "MODE_AI_PINNED - AI 1.2.5 drives CMS auto-detection"
+    }
+  },
+  {
+    "name": "MODE_AI_PINNED (1): Test module drives AI, CMS auto-detects",
+    "description": "Test module forces MODE_AI_PINNED",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_TEST_MODULE": "ai_seo",
+      "DP_TEST_MODULE_VERSION": "1.0.7",
+      "DP_AI_MODULES": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 1,
+      "ai_version_pattern": "^1\\.",
+      "modules_resolved": ["ai", "ai_seo"],
+      "comment": "MODE_AI_PINNED - ai_seo 1.0.7 requires AI ^1, CMS auto-detects"
+    }
+  },
+  {
+    "name": "MODE_AI_PINNED (1): Issue branch forces mode 1",
+    "description": "Issue branch presence forces AI pinned mode",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_TEST_MODULE": "ai_agents",
+      "DP_TEST_MODULE_VERSION": "1.3.x",
+      "DP_TEST_MODULE_ISSUE_FORK": "ai_agents-3558587",
+      "DP_TEST_MODULE_ISSUE_BRANCH": "3558587-error-foreach",
+      "DP_AI_MODULES": ""
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 1,
+      "modules_resolved": ["ai", "ai_agents"],
+      "comment": "MODE_AI_PINNED - Issue branch ai_agents 1.3.x (3558587-error-foreach) forces mode, CMS auto-detects"
+    }
+  },
+  {
+    "name": "MODE_AI_AND_CMS_PINNED (4): Both explicitly set",
+    "description": "CMS and AI both pinned",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.2.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "1.0.x",
+      "DP_AI_MODULES": "",
+      "DP_FORCE_DEPENDENCIES": "1"
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 4,
+      "lenient_enabled": true,
+      "drupal_version_pattern": "^1\\.2\\.",
+      "comment": "MODE_AI_AND_CMS_PINNED - Both pinned, path repos eligible"
+    }
+  },
+  {
+    "name": "MODE_AI_AND_CMS_PINNED (4): Forced incompatible combination",
+    "description": "CMS 1.x + AI 2.0.x with lenient mode",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "",
+      "DP_FORCE_DEPENDENCIES": "1"
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 4,
+      "lenient_enabled": true,
+      "drupal_version_pattern": "^1\\.",
+      "ai_version_pattern": "(^dev-2\\.0\\.x$|^2\\.0\\.x-dev$)",
+      "comment": "MODE_AI_AND_CMS_PINNED - Lenient allows incompatible combo"
+    }
+  },
+  {
+    "name": "MODE_AI_AND_CMS_PINNED (4): Core + AI both pinned",
+    "description": "Core 11.x + AI 2.0.x forced",
+    "env": {
+      "DP_STARTER_TEMPLATE": "core",
+      "DP_VERSION": "11.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "",
+      "DP_FORCE_DEPENDENCIES": "1"
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 4,
+      "lenient_enabled": true,
+      "drupal_version_pattern": "^11\\.",
+      "ai_version_pattern": "(^dev-2\\.0\\.x$|^2\\.0\\.x-dev$)",
+      "comment": "MODE_AI_AND_CMS_PINNED - Core and AI both pinned"
+    }
+  },
+  {
+    "name": "MODE_AI_AND_CMS_PINNED (4): With test module",
+    "description": "CMS + test module + AI all pinned",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_TEST_MODULE": "ai_agents",
+      "DP_TEST_MODULE_VERSION": "1.0.x",
+      "DP_AI_MODULES": "",
+      "DP_FORCE_DEPENDENCIES": "1"
+    },
+    "expect": {
+      "should_succeed": true,
+      "resolution_mode": 4,
+      "lenient_enabled": true,
+      "drupal_version_pattern": "^1\\.",
+      "modules_resolved": ["ai", "ai_agents"],
+      "comment": "MODE_AI_AND_CMS_PINNED - All three pinned with lenient"
+    }
+  }
+]

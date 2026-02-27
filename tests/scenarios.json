@@ -44,7 +44,8 @@
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "2.0.x",
-      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_FORCE_DEPENDENCIES": "0"
     },
     "expect": {
       "should_succeed": false,
@@ -104,8 +105,8 @@
     }
   },
   {
-    "name": "DP_TEST_MODULE: ai_seo with all modules (ai_search, ai_provider_amazeeio SKIPPED)",
-    "description": "Test ai_seo module - ai_search and ai_provider_amazeeio skipped",
+    "name": "DP_TEST_MODULE: ai_seo with all modules (ai_search SKIPPED)",
+    "description": "Test ai_seo module - ai_search skipped, others resolve",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.x",
@@ -118,9 +119,9 @@
     "expect": {
       "should_succeed": true,
       "ai_version_pattern": "^1\\.",
-      "modules_resolved": ["ai", "ai_seo"],
-      "modules_skipped": ["ai_search", "ai_provider_amazeeio"],
-      "comment": "ai_seo drives AI 1.x; ai_search + ai_provider_amazeeio skipped"
+      "modules_resolved": ["ai", "ai_seo", "ai_provider_amazeeio", "ai_agents"],
+      "modules_skipped": ["ai_search"],
+      "comment": "ai_seo drives AI 1.x; ai_provider_amazeeio and ai_agents compatible; ai_search requires AI 2.x"
     }
   },
   {
@@ -133,7 +134,8 @@
       "DP_AI_MODULE_VERSION": "2.0.x",
       "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
       "DP_TEST_MODULE": "ai_seo",
-      "DP_TEST_MODULE_VERSION": ""
+      "DP_TEST_MODULE_VERSION": "",
+      "DP_FORCE_DEPENDENCIES": "0"
     },
     "expect": {
       "should_succeed": false,
@@ -150,11 +152,94 @@
       "DP_AI_MODULE_VERSION": "2.0.x",
       "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
       "DP_TEST_MODULE": "ai_seo",
-      "DP_TEST_MODULE_VERSION": "1.0.7"
+      "DP_TEST_MODULE_VERSION": "1.0.7",
+      "DP_FORCE_DEPENDENCIES": "0"
     },
     "expect": {
       "should_succeed": false,
       "comment": "ai_seo 1.0.7 requires AI ^1"
+    }
+  },
+  {
+    "name": "DP_TEST_MODULE: ai_agents with auto-detect AI version",
+    "description": "Test ai_agents module - resolves to AI 1.x",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_TEST_MODULE": "ai_agents",
+      "DP_TEST_MODULE_VERSION": "1.0.x"
+    },
+    "expect": {
+      "should_succeed": true,
+      "ai_version_pattern": "^1\\.2",
+      "modules_resolved": ["ai", "ai_agents"],
+      "comment": "ai_agents requires AI ^1.2, resolves correctly"
+    }
+  },
+  {
+    "name": "DP_TEST_MODULE PR: ai_agents issue branch with auto-detect AI",
+    "description": "Test ai_agents issue fork/branch with version pin and auto-detected CMS",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_ISSUE_FORK": "",
+      "DP_AI_ISSUE_BRANCH": "",
+      "DP_TEST_MODULE": "ai_agents",
+      "DP_TEST_MODULE_VERSION": "1.0.x",
+      "DP_TEST_MODULE_ISSUE_FORK": "ai_agents-3568673",
+      "DP_TEST_MODULE_ISSUE_BRANCH": "3568673-scope-plugins",
+      "DP_FORCE_DEPENDENCIES": "1"
+    },
+    "expect": {
+      "should_succeed": true,
+      "manifest_starter_template": "cms",
+      "manifest_dp_version": "",
+      "project_package": "drupal/cms",
+      "modules_resolved": ["ai", "ai_agents"]
+    }
+  },
+  {
+    "name": "DP_TEST_MODULE: ai_agents with forced AI 2.0.x (should FAIL)",
+    "description": "Force AI 2.0.x but ai_agents requires AI ^1.2 - test module fails",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_TEST_MODULE": "ai_agents",
+      "DP_TEST_MODULE_VERSION": "1.0.x",
+      "DP_FORCE_DEPENDENCIES": "0"
+    },
+    "expect": {
+      "should_succeed": false,
+      "comment": "ai_agents 1.0.x requires AI ^1.3, conflicts with explicit AI 2.0.x"
+    }
+  },
+  {
+    "name": "DP_TEST_MODULE: ai_agents with forced AI 2.0.x and lenient mode",
+    "description": "Lenient mode allows forcing AI 2.x with ai_agents 1.x",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "2.0.x",
+      "DP_AI_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
+      "DP_TEST_MODULE": "ai_agents",
+      "DP_TEST_MODULE_VERSION": "1.0.x",
+      "DP_FORCE_DEPENDENCIES": "1"
+    },
+    "expect": {
+      "should_succeed": true,
+      "lenient_enabled": true,
+      "ai_version_pattern": "(^dev-2\\.0\\.x$|^2\\.0\\.x-dev$)",
+      "modules_resolved": ["ai", "ai_agents"],
+      "comment": "Lenient mode relaxes ai_agents's drupal/ai ^1.2 constraint to allow AI 2.x"
     }
   },
   {
@@ -192,9 +277,9 @@
     },
     "expect": {
       "should_succeed": true,
-      "modules_resolved": ["ai", "ai_seo"],
-      "modules_skipped": ["ai_search", "ai_provider_amazeeio", "ai_agents"],
-      "comment": "PR branch cloned for test module"
+      "modules_resolved": ["ai", "ai_seo", "ai_provider_amazeeio", "ai_agents"],
+      "modules_skipped": ["ai_search"],
+      "comment": "PR branch cloned for test module; ai_provider_amazeeio and ai_agents compatible with AI 1.x"
     }
   },
   {
@@ -369,6 +454,59 @@
       "should_succeed": true,
       "lenient_enabled": true,
       "lenient_packages": ["drupal/ai"]
+    }
+  },
+  {
+    "name": "DP_NO_DEV: Skip dev dependencies for faster install",
+    "description": "Test DP_NO_DEV=1 performance flag",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "ai_provider_amazeeio",
+      "DP_NO_DEV": "1"
+    },
+    "expect": {
+      "should_succeed": true,
+      "comment": "Fast install without PHPStan, testing tools"
+    }
+  },
+  {
+    "name": "DP_NO_DEV: Default behaviour (include dev dependencies)",
+    "description": "Test DP_NO_DEV=0 or unset",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "1.x",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_MODULES": "",
+      "DP_NO_DEV": "0"
+    },
+    "expect": {
+      "should_succeed": true,
+      "comment": "Full install with dev dependencies (default)"
+    }
+  },
+  {
+    "name": "ai_image_alt_text issue branch #3545687",
+    "description": "Test ai_image_alt_text 500 error fix from config.drupalpod.yaml",
+    "env": {
+      "DP_STARTER_TEMPLATE": "cms",
+      "DP_VERSION": "",
+      "DP_AI_MODULE": "ai",
+      "DP_AI_MODULE_VERSION": "",
+      "DP_AI_ISSUE_FORK": "",
+      "DP_AI_ISSUE_BRANCH": "",
+      "DP_TEST_MODULE": "ai_image_alt_text",
+      "DP_TEST_MODULE_VERSION": "1.0.x",
+      "DP_TEST_MODULE_ISSUE_FORK": "ai_image_alt_text-3545687",
+      "DP_TEST_MODULE_ISSUE_BRANCH": "3545687-500-error-on-large-nodes"
+    },
+    "expect": {
+      "should_succeed": true,
+      "modules_resolved": ["ai", "ai_image_alt_text"],
+      "comment": "Real-world scenario from .ddev/config.drupalpod.yaml"
     }
   }
 ]

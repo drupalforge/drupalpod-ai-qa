@@ -9,8 +9,7 @@ set -euo pipefail
 
 # Load common utilities.
 export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
-init_common
+source "$SCRIPT_DIR/lib/bootstrap.sh"
 require_jq
 
 # Check if AI modules are configured.

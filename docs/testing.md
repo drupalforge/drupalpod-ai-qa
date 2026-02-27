@@ -41,30 +41,72 @@ The scenario runner executes `scripts/resolve_modules.sh` against a JSON list.
 It uses Composer and writes plans to `logs/test-{N}/ai-manifest.json`.
 
 ```bash
-# Run all scenarios
+# Run all scenarios (default compatibility tests)
 ./tests/run-scenarios.sh
 
-# Run a custom scenarios file
-./tests/run-scenarios.sh tests/scenarios.json
+# Run Drupal resolution mode tests
+./tests/run-scenarios.sh tests/scenarios-drupal-resolution.json
+
+# Run with custom scenarios file
+./tests/run-scenarios.sh tests/custom-scenarios.json
 ```
 
-Each scenario can set env vars (like `DP_VERSION`, `DP_AI_MODULE_VERSION`)
+### Scenario Files
+
+- **`scenarios.json`** - Compatibility test suite covering all combinations of CMS/Core versions, AI module versions, test modules, optional modules, lenient mode, and performance flags (DP_NO_DEV)
+- **`scenarios-drupal-resolution.json`** - Resolution mode validation suite that tests auto-detection logic, verifies which resolution mode (1-4) is selected, and validates which CMS/Core version gets resolved
+
+Each scenario can set env vars (like `DP_VERSION`, `DP_AI_MODULE_VERSION`, `DP_NO_DEV`)
 and optional `DP_FORCE_DEPENDENCIES=1` to relax `drupal/ai` constraints
 via the local Composer plugin.
 `DP_AI_MODULES` is validated against a repo allowlist; unknown modules fail fast.
 
-Example scenario:
+### Resolution Modes
+
+Tests in `scenarios-drupal-resolution.json` validate which mode is selected:
+
+- **MODE_AUTO (3)**: Neither CMS nor AI pinned - full auto-detection
+- **MODE_AI_PINNED (1)**: AI/test module pinned, CMS auto-detects
+- **MODE_CMS_PINNED (2)**: CMS pinned, AI auto-detects
+- **MODE_AI_AND_CMS_PINNED (4)**: Both pinned - path repos eligible for conflict resolution
+
+Example compatibility scenario:
 ```json
 {
   "name": "CMS 1.x with forced AI 2.0.x",
+  "description": "Force AI 2.0.x on CMS with dependency overrides",
   "env": {
     "DP_STARTER_TEMPLATE": "cms",
     "DP_VERSION": "1.x",
+    "DP_AI_MODULE": "ai",
     "DP_AI_MODULE_VERSION": "2.0.x",
+    "DP_NO_DEV": "1",
     "DP_FORCE_DEPENDENCIES": "1"
   },
   "expect": {
-    "should_succeed": true
+    "should_succeed": true,
+    "lenient_enabled": true,
+    "ai_version_pattern": "(^dev-2\\.0\\.x$|^2\\.0\\.x-dev$)"
+  }
+}
+```
+
+Example resolution mode scenario:
+```json
+{
+  "name": "MODE_CMS_PINNED (2): CMS 1.x forces AI 1.x",
+  "description": "CMS pinned to 1.x, AI should auto-detect to 1.x",
+  "env": {
+    "DP_STARTER_TEMPLATE": "cms",
+    "DP_VERSION": "1.x",
+    "DP_AI_MODULE": "ai",
+    "DP_AI_MODULE_VERSION": ""
+  },
+  "expect": {
+    "should_succeed": true,
+    "resolution_mode": 2,
+    "drupal_version_pattern": "^1\\.",
+    "ai_version_pattern": "^1\\."
   }
 }
 ```
@@ -115,9 +157,14 @@ Example scenario:
 
 GitLab CI workflow: `.gitlab-ci.yml`
 
-- Includes Drupal CI templates (`include.drupalci.*.yml`)
-- `bats` job runs `npm ci` + `npm test`
-- `template-version-smoke` runs a 6-way matrix using
-  `tests/scenarios-template-version.json`
-- `scenario-matrix` runs the full scenario suite using
-  `tests/scenarios.json`
+Three-layer pipeline:
+
+1. **Layer 1 (smoke)**: `bats` unit tests + `template-version-smoke` (6 scenarios in parallel)
+2. **Layer 2 (resolution)**: `drupal-resolution-matrix` (14 resolution mode scenarios in parallel)
+3. **Layer 3 (extended)**: `scenario-matrix` (30-way parallel compatibility suite)
+
+Jobs:
+- `bats` - Unit tests (`npm ci` + `npm test`)
+- `template-version-smoke` - 6-way parallel matrix using `tests/scenarios-template-version.json`
+- `drupal-resolution-matrix` - 14-way parallel matrix using `tests/scenarios-drupal-resolution.json`
+- `scenario-matrix` - 30-way parallel matrix using `tests/scenarios.json`
