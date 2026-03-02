@@ -231,6 +231,14 @@ if [ ! -f composer.lock ] || [ "$COMPOSER_INSTALL_EXIT" -ne 0 ]; then
   fi
 fi
 
+# Ensure drush binary exists. If drush ended up only in require-dev of the template
+# and composer ran without dev dependencies (e.g. DP_NO_DEV=1 or base image default),
+# the binary will be missing. Install it explicitly as a fallback.
+if [ ! -f "$DRUSH" ]; then
+  echo "Drush binary not found at $DRUSH — installing explicitly..."
+  composer require --prefer-dist drush/drush
+fi
+
 if [ -n "${DP_ALIAS_MODULES:-}" ]; then
   echo
   echo "Resetting temporary branch aliases..."
