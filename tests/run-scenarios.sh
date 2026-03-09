@@ -59,7 +59,7 @@ run_scenario() {
     export DP_TEST_MODULE_VERSION=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE_VERSION // ""')
     export DP_TEST_MODULE_ISSUE_FORK=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE_ISSUE_FORK // ""')
     export DP_TEST_MODULE_ISSUE_BRANCH=$(echo "$scenario_json" | jq -r '.env.DP_TEST_MODULE_ISSUE_BRANCH // ""')
-    export DP_AI_MODULES=$(echo "$scenario_json" | jq -r '.env.DP_AI_MODULES // ""')
+    export DP_EXTRA_MODULES=$(echo "$scenario_json" | jq -r '.env.DP_EXTRA_MODULES // ""')
     export DP_FORCE_DEPENDENCIES=$(echo "$scenario_json" | jq -r '.env.DP_FORCE_DEPENDENCIES // "1"')
     RUN_CLONE=$(echo "$scenario_json" | jq -r '.env.run_clone // false')
 
@@ -80,7 +80,7 @@ run_scenario() {
     [ -n "$DP_TEST_MODULE_VERSION" ] && echo "  DP_TEST_MODULE_VERSION: $DP_TEST_MODULE_VERSION"
     [ -n "$DP_TEST_MODULE_ISSUE_FORK" ] && echo "  DP_TEST_MODULE_ISSUE_FORK: $DP_TEST_MODULE_ISSUE_FORK"
     [ -n "$DP_TEST_MODULE_ISSUE_BRANCH" ] && echo "  DP_TEST_MODULE_ISSUE_BRANCH: $DP_TEST_MODULE_ISSUE_BRANCH"
-    [ -n "$DP_AI_MODULES" ] && echo "  DP_AI_MODULES: $DP_AI_MODULES"
+    [ -n "$DP_EXTRA_MODULES" ] && echo "  DP_EXTRA_MODULES: $DP_EXTRA_MODULES"
     echo "  DP_FORCE_DEPENDENCIES: $DP_FORCE_DEPENDENCIES"
     echo "  run_clone: $RUN_CLONE"
     echo ""

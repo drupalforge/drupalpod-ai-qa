@@ -296,11 +296,11 @@ if [ "$MODE" = "$MODE_AUTO" ] && [ -z "${DP_VERSION:-}" ]; then
     fi
 fi
 
-# Collect optional modules from DP_AI_MODULES. These are "try if possible":
+# Collect optional modules from DP_EXTRA_MODULES. These are "try if possible":
 # we attempt to add them after the base AI version is resolved and skip any
 # that conflict, recording them in the final manifest.
-if [ -n "${DP_AI_MODULES:-}" ]; then
-    IFS=',' read -ra MODULES <<< "$DP_AI_MODULES"
+if [ -n "${DP_EXTRA_MODULES:-}" ]; then
+    IFS=',' read -ra MODULES <<< "$DP_EXTRA_MODULES"
     for module in "${MODULES[@]}"; do
         module=$(echo "$module" | xargs)
         [ -n "$module" ] || continue

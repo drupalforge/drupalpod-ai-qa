@@ -92,39 +92,17 @@ export DP_TEST_MODULE_VERSION=${DP_TEST_MODULE_VERSION:-''}
 export DP_TEST_MODULE_ISSUE_FORK=${DP_TEST_MODULE_ISSUE_FORK:-''}
 export DP_TEST_MODULE_ISSUE_BRANCH=${DP_TEST_MODULE_ISSUE_BRANCH:-''}
 
-# Validate optional AI module list against a fixed allowlist to avoid pulling
-# unexpected packages from Composer.
-ALLOWED_AI_MODULES=(
-    ai
-    ai_agents
-    ai_provider_amazeeio
-    ai_provider_anthropic
-    ai_provider_litellm
-    ai_provider_openai
-    ai_search
-)
+# Hard limit on the number of extra modules that can be requested.
+# To change the limit, update MAX_EXTRA_MODULES below — it is referenced
+# throughout the validation logic so there is only one place to edit.
+readonly MAX_EXTRA_MODULES=15
 
-if [ -n "${DP_AI_MODULES:-}" ]; then
-    IFS=',' read -ra REQUESTED_MODULES <<< "$DP_AI_MODULES"
-    for module in "${REQUESTED_MODULES[@]}"; do
-        module=$(echo "$module" | xargs)
-        [ -n "$module" ] || continue
-        if [ -n "${DP_TEST_MODULE:-}" ] && [ "$module" = "$DP_TEST_MODULE" ]; then
-            continue
-        fi
-        allowed=false
-        for allowed_module in "${ALLOWED_AI_MODULES[@]}"; do
-            if [ "$module" = "$allowed_module" ]; then
-                allowed=true
-                break
-            fi
-        done
-        if [ "$allowed" = "false" ]; then
-            echo "ERROR: DP_AI_MODULES includes unsupported module: $module" >&2
-            echo "Allowed modules: ${ALLOWED_AI_MODULES[*]}" >&2
-            exit 1
-        fi
-    done
+if [ -n "${DP_EXTRA_MODULES:-}" ]; then
+    IFS=',' read -ra REQUESTED_MODULES <<< "$DP_EXTRA_MODULES"
+    if [ "${#REQUESTED_MODULES[@]}" -gt "$MAX_EXTRA_MODULES" ]; then
+        echo "ERROR: DP_EXTRA_MODULES exceeds the maximum of $MAX_EXTRA_MODULES modules (got ${#REQUESTED_MODULES[@]})." >&2
+        exit 1
+    fi
 fi
 
 # Validate AI module and test module issue version requirements.

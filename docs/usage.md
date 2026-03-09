@@ -12,10 +12,10 @@ web_environment:
   - DP_VERSION=
   - DP_AI_MODULE=ai
   - DP_AI_MODULE_VERSION=
-  - DP_TEST_MODULE=
-  - DP_TEST_MODULE_VERSION=
-  - DP_TEST_MODULE_ISSUE_FORK=
-  - DP_TEST_MODULE_ISSUE_BRANCH=
+  - DP_TEST_MODULE=ai_image_alt_text
+  - DP_TEST_MODULE_VERSION=1.0.x
+  - DP_TEST_MODULE_ISSUE_FORK=ai_image_alt_text-3545687
+  - DP_TEST_MODULE_ISSUE_BRANCH=3545687-500-error-on-large-nodes
   - DP_FORCE_DEPENDENCIES=1
   - DP_REBUILD=1
   - DP_NO_DEV=0
@@ -64,7 +64,7 @@ The plan is written to `logs/ai-manifest.json` and drives module checkout.
 ## Compatibility & Overrides
 
 - If `DP_TEST_MODULE` is set, it drives AI compatibility.
-- Optional modules in `DP_AI_MODULES` are tried and skipped if incompatible.
+- Optional modules in `DP_EXTRA_MODULES` are tried and skipped if incompatible (capped by MAX_EXTRA_MODULES in fallback_setup.sh).
 - `DP_FORCE_DEPENDENCIES=1` enables a local Composer plugin that relaxes
   `drupal/ai` constraints during resolution (useful for AI 2.x on CMS).
 - When using PR branches, set both fork + branch and a matching module version
@@ -78,7 +78,7 @@ Common variables:
 - `DP_STARTER_TEMPLATE`: `cms` or `core`
 - `DP_VERSION`: version string (empty = latest stable)
 - `DP_AI_MODULE_VERSION`: empty = auto-detect; set to force a version
-- `DP_AI_MODULES`: allowlisted extra modules (see `README.md`)
+- `DP_EXTRA_MODULES`: extra modules to include, up to 15 (see `README.md`)
 - `DP_TEST_MODULE`: module under test (optional)
 - `DP_FORCE_DEPENDENCIES`: `1` to relax `drupal/ai` constraints via local plugin
 - `DP_NO_DEV`: `1` to skip dev dependencies for faster installs

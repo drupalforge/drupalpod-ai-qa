@@ -177,16 +177,18 @@ ensure_module_submodule() {
         return 0
     fi
 
+    local relative_dir="repos/$module_name"
+
     # Repos are managed as git submodules so local checkouts are reproducible.
-    if git submodule status "$repo_dir" >/dev/null 2>&1; then
+    if git -C "$PROJECT_ROOT" submodule status "$relative_dir" >/dev/null 2>&1; then
         reset_module_composer_json_if_dirty "$repo_dir"
-        git submodule update --init --recursive "$repo_dir"
+        git -C "$PROJECT_ROOT" submodule update --init --recursive "$relative_dir"
         return 0
     fi
 
     # If submodule metadata is broken/missing, fall back to a direct clone
     # so setup can continue in local dev environments.
-    if git ls-files --stage "$repo_dir" 2>/dev/null | grep -q '^160000 '; then
+    if git -C "$PROJECT_ROOT" ls-files --stage "$relative_dir" 2>/dev/null | grep -q '^160000 '; then
         log_warn "Submodule metadata missing for $repo_dir. Falling back to direct clone."
         if [ ! -d "$repo_dir" ]; then
             retry git clone "https://git.drupalcode.org/project/$module_name.git" "$repo_dir"
@@ -195,13 +197,13 @@ ensure_module_submodule() {
         return 0
     fi
 
-    if ! git submodule status "$repo_dir" >/dev/null 2>&1; then
+    if ! git -C "$PROJECT_ROOT" submodule status "$relative_dir" >/dev/null 2>&1; then
         log_info "Adding module submodule: $module_name"
-        git submodule add -f "https://git.drupalcode.org/project/$module_name.git" "$repo_dir"
-        git config -f .gitmodules "submodule.$repo_dir.ignore" dirty
+        git -C "$PROJECT_ROOT" submodule add -f "https://git.drupalcode.org/project/$module_name.git" "$relative_dir"
+        git config -f "$PROJECT_ROOT/.gitmodules" "submodule.$relative_dir.ignore" dirty
     fi
     reset_module_composer_json_if_dirty "$repo_dir"
-    git submodule update --init --recursive "$repo_dir"
+    git -C "$PROJECT_ROOT" submodule update --init --recursive "$relative_dir"
 }
 
 fetch_module_remotes() {

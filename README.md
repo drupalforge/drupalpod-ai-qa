@@ -60,12 +60,15 @@ ddev restart
 
 Create `.ddev/config.drupal.yaml` to override defaults:
 
-**Test a contrib module PR (e.g., ai_search)**
+**Test a contrib module PR (e.g., ai_image_alt_text)**
 ```yaml
 web_environment:
-  - DP_TEST_MODULE=ai_search
-  - DP_TEST_MODULE_ISSUE_FORK=drupal
-  - DP_TEST_MODULE_ISSUE_BRANCH=3498765-feature-name
+  - DP_AI_MODULE=ai
+  - DP_AI_MODULE_VERSION=
+  - DP_TEST_MODULE=ai_image_alt_text
+  - DP_TEST_MODULE_VERSION=1.0.x
+  - DP_TEST_MODULE_ISSUE_FORK=ai_image_alt_text-3545687
+  - DP_TEST_MODULE_ISSUE_BRANCH=3545687-500-error-on-large-nodes
   - DP_REBUILD=1
 ```
 
@@ -81,9 +84,10 @@ web_environment:
 **Test a contrib PR against a specific AI version**
 ```yaml
 web_environment:
-  - DP_TEST_MODULE=ai_search
-  - DP_TEST_MODULE_ISSUE_FORK=drupal
-  - DP_TEST_MODULE_ISSUE_BRANCH=3498765-feature
+  - DP_TEST_MODULE=ai_agents
+  - DP_TEST_MODULE_VERSION=1.0.x
+  - DP_TEST_MODULE_ISSUE_FORK=ai_agents-3568673
+  - DP_TEST_MODULE_ISSUE_BRANCH=3568673-scope-plugins
   - DP_AI_MODULE_VERSION=2.0.x
   - DP_FORCE_DEPENDENCIES=1 # Uses local plugin to relax drupal/ai constraints
   - DP_REBUILD=1
@@ -124,7 +128,7 @@ Note: `DP_AI_VIRTUAL_KEY` support is not fully integrated or tested yet.
 | `DP_AI_MODULE_VERSION` | AI version (empty = auto-detect from test module) | Empty |
 | `DP_AI_ISSUE_FORK` | Fork name for AI PR testing (requires branch) | Empty |
 | `DP_AI_ISSUE_BRANCH` | Branch name for AI PR testing (requires fork) | Empty |
-| `DP_AI_MODULES` | Ecosystem modules to include (allowlisted) | `ai_provider_amazeeio,ai_search,ai_agents` |
+| `DP_EXTRA_MODULES` | Extra modules to include (comma-separated, capped by MAX_EXTRA_MODULES) | `ai_provider_amazeeio,ai_search,ai_agents` |
 | `DP_FORCE_DEPENDENCIES` | `1` = lenient mode (relax constraints), `0` = strict | `1` |
 
 ### Test Module Settings

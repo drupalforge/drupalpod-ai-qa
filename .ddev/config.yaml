@@ -29,7 +29,7 @@ web_environment:
     - DB_NAME=db
     - DP_APP_ID=drupalpod_ai_qa
     - DB_DRIVER=mysql
-    - DP_AI_MODULES=ai_search,ai_agents,ai_provider_amazeeio
+    - DP_EXTRA_MODULES=ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text
 
     - # ============================================================================
     - # DevPanel / Drupal defaults - customisable
@@ -55,7 +55,7 @@ web_environment:
 
     - # Optional: force Composer to resolve AI deps even if CMS/Core constraints block it.
     - # This enables lenient resolution when testing explicit AI versions.
-    - DP_FORCE_DEPENDENCIES=0       # 1 = ignore CMS/Core constraints for AI deps
+    - DP_FORCE_DEPENDENCIES=1       # 1 = ignore CMS/Core constraints for AI deps
 
     - # ---------------------------------------------------------------------------
     - # Test any AI sub-module (ai_search, ai_agents, providers, etc.)

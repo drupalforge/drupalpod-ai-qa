@@ -7,7 +7,7 @@
       "DP_VERSION": "",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": ""
+      "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
@@ -25,7 +25,7 @@
       "DP_VERSION": "",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": ""
+      "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
@@ -43,7 +43,7 @@
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": ""
+      "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
@@ -61,7 +61,7 @@
       "DP_VERSION": "2.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": ""
+      "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
@@ -78,7 +78,7 @@
       "DP_VERSION": "1.2.9",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": ""
+      "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
@@ -96,7 +96,7 @@
       "DP_VERSION": "11.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": ""
+      "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
@@ -113,7 +113,7 @@
       "DP_VERSION": "10.4.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_AI_MODULES": ""
+      "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
@@ -130,7 +130,7 @@
       "DP_VERSION": "",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "1.2.5",
-      "DP_AI_MODULES": ""
+      "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
@@ -140,23 +140,23 @@
     }
   },
   {
-    "name": "MODE_AI_PINNED (1): Test module drives AI, CMS auto-detects",
-    "description": "Test module forces MODE_AI_PINNED",
+    "name": "MODE_AI_PINNED (1): ai_image_alt_text drives AI, CMS auto-detects",
+    "description": "Test module compatibility forces MODE_AI_PINNED",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "",
-      "DP_TEST_MODULE": "ai_seo",
-      "DP_TEST_MODULE_VERSION": "1.0.7",
-      "DP_AI_MODULES": ""
+      "DP_TEST_MODULE": "ai_image_alt_text",
+      "DP_TEST_MODULE_VERSION": "1.0.x",
+      "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
       "resolution_mode": 1,
       "ai_version_pattern": "^1\\.",
-      "modules_resolved": ["ai", "ai_seo"],
-      "comment": "MODE_AI_PINNED - ai_seo 1.0.7 requires AI ^1, CMS auto-detects"
+      "modules_resolved": ["ai", "ai_image_alt_text"],
+      "comment": "MODE_AI_PINNED - ai_image_alt_text 1.0.x requires AI ^1, CMS auto-detects"
     }
   },
   {
@@ -171,7 +171,7 @@
       "DP_TEST_MODULE_VERSION": "1.3.x",
       "DP_TEST_MODULE_ISSUE_FORK": "ai_agents-3558587",
       "DP_TEST_MODULE_ISSUE_BRANCH": "3558587-error-foreach",
-      "DP_AI_MODULES": ""
+      "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
@@ -188,7 +188,7 @@
       "DP_VERSION": "1.2.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "1.0.x",
-      "DP_AI_MODULES": "",
+      "DP_EXTRA_MODULES": "",
       "DP_FORCE_DEPENDENCIES": "1"
     },
     "expect": {
@@ -207,7 +207,7 @@
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "2.0.x",
-      "DP_AI_MODULES": "",
+      "DP_EXTRA_MODULES": "",
       "DP_FORCE_DEPENDENCIES": "1"
     },
     "expect": {
@@ -227,7 +227,7 @@
       "DP_VERSION": "11.x",
       "DP_AI_MODULE": "ai",
       "DP_AI_MODULE_VERSION": "2.0.x",
-      "DP_AI_MODULES": "",
+      "DP_EXTRA_MODULES": "",
       "DP_FORCE_DEPENDENCIES": "1"
     },
     "expect": {
@@ -249,7 +249,7 @@
       "DP_AI_MODULE_VERSION": "2.0.x",
       "DP_TEST_MODULE": "ai_agents",
       "DP_TEST_MODULE_VERSION": "1.0.x",
-      "DP_AI_MODULES": "",
+      "DP_EXTRA_MODULES": "",
       "DP_FORCE_DEPENDENCIES": "1"
     },
     "expect": {
