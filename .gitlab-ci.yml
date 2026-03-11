@@ -29,6 +29,23 @@ bats:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
 
+custom-module-phpunit:
+  stage: test
+  image: registry.gitlab.com/drupal-infrastructure/drupalci/drupalci-environments/php-8.3-ubuntu-apache:production
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends bash git unzip
+  script:
+    - bash scripts/run_custom_module_phpunit.sh
+  artifacts:
+    when: always
+    paths:
+      - web/sites/simpletest/browser_output/
+    expire_in: 7 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
 template-version-smoke:
   stage: test
   image: registry.gitlab.com/drupal-infrastructure/drupalci/drupalci-environments/php-8.3-ubuntu-apache:production

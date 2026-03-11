@@ -1,7 +1,9 @@
 amazeeio
 argjson
 behaviour
+cpath
 cset
+csvg
 deepchat
 devpanel
 drupalcode
@@ -17,6 +19,7 @@ precloned
 rateit
 relisten
 shaal
+slurpfile
 textcounter
 tippyjs
 todate

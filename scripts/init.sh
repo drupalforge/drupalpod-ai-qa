@@ -187,6 +187,9 @@ else
   fi
 fi
 
+# Install repo-managed custom support modules into the generated Drupal docroot.
+source "$SCRIPT_DIR/install_build_info_module.sh"
+
 # Optionally skip dev dependencies (PHPStan, testing tools, etc.) for faster
 # installs when development tooling isn't required. Enable with DP_NO_DEV=1.
 COMPOSER_DEV_FLAG=""
@@ -292,8 +295,10 @@ if [ "${DP_REBUILD:-0}" = "1" ] || ! $DRUSH status --field=bootstrap | grep -q "
 
   # Enable AI modules.
   source "$SCRIPT_DIR/enable_ai_modules.sh"
+  time $DRUSH -n pm:enable drupalpod_build_info
 
   # Run any post-install tasks.
+  source "$SCRIPT_DIR/write_build_info.sh"
   echo
   echo 'Tell Automatic Updates about patches.'
   $DRUSH -n cset --input-format=yaml package_manager.settings additional_trusted_composer_plugins '["cweagans/composer-patches"]'
@@ -302,6 +307,8 @@ if [ "${DP_REBUILD:-0}" = "1" ] || ! $DRUSH status --field=bootstrap | grep -q "
 else
   echo 'Update database.'
   time $DRUSH -n updb
+  time $DRUSH -n pm:enable drupalpod_build_info || true
+  source "$SCRIPT_DIR/write_build_info.sh"
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

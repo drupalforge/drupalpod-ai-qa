@@ -1,0 +1,4 @@
+status_report:
+  css:
+    component:
+      css/drupalpod-build-info.css: {}

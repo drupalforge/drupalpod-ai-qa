@@ -1,0 +1,259 @@
+<?php
+
+/**
+ * @file
+ * Status report integration for DrupalPod AI QA build metadata.
+ */
+
+/**
+ * Implements hook_preprocess_HOOK() for status_report_general_info.
+ */
+function drupalpod_build_info_preprocess_status_report_general_info(array &$variables): void {
+  $data = _drupalpod_build_info_load_data();
+
+  if ($data === NULL) {
+    $variables['drupalpod'] = [
+      'value' => t('Unavailable'),
+      'description' => t('Run the DrupalPod init workflow to regenerate build metadata.'),
+      'items' => [],
+    ];
+    return;
+  }
+
+  $items = [];
+  $summary_bits = [];
+  if (!empty($data['compatibility'])) {
+    $summary_bits[] = t('compatibility @compatibility', [
+      '@compatibility' => (string) $data['compatibility'],
+    ]);
+  }
+  if (!empty($data['resolution_mode'])) {
+    $summary_bits[] = t('mode @mode', [
+      '@mode' => (string) $data['resolution_mode'],
+    ]);
+  }
+  if ($summary_bits !== []) {
+    $items[] = [
+      'title' => t('Resolution'),
+      'value' => implode(', ', array_map('strval', $summary_bits)),
+    ];
+  }
+
+  $items[] = [
+    'title' => t('Template'),
+    'value' => _drupalpod_build_info_format_template_value(
+      (string) ($data['starter_template'] ?? 'Unknown'),
+      !empty($data['resolved_cms_version']) ? (string) $data['resolved_cms_version'] : (string) ($data['resolved_core_version'] ?? ''),
+    ),
+  ];
+
+  $items[] = [
+    'title' => t('AI target'),
+    'value' => (string) ($data['requested_ai_module'] ?? ''),
+  ];
+  if (!empty($data['requested_ai_module'])) {
+    $items[count($items) - 1] = _drupalpod_build_info_format_requested_target(
+      t('AI target'),
+      (string) $data['requested_ai_module'],
+      (string) ($data['requested_ai_version'] ?? ''),
+      (string) ($data['requested_ai_issue_fork'] ?? ''),
+      (string) ($data['requested_ai_issue_branch'] ?? ''),
+    );
+  }
+
+  if (!empty($data['requested_test_module'])) {
+    $items[] = _drupalpod_build_info_format_requested_target(
+      t('Test target'),
+      (string) $data['requested_test_module'],
+      (string) ($data['requested_test_version'] ?? ''),
+      (string) ($data['requested_test_issue_fork'] ?? ''),
+      (string) ($data['requested_test_issue_branch'] ?? ''),
+    );
+  }
+  $items[] = [
+    'title' => t('Generated'),
+    'value' => (string) ($data['generated_at'] ?? 'Unknown'),
+  ];
+
+  $modules = [];
+  foreach (($data['modules'] ?? []) as $module) {
+    $modules[] = _drupalpod_build_info_format_module($module);
+  }
+  if ($modules !== []) {
+    $items[] = [
+      'title' => t('Modules'),
+      'modules' => $modules,
+      'open' => FALSE,
+    ];
+  }
+
+  $variables['drupalpod'] = [
+    'value' => '',
+    'description' => '',
+    'items' => $items,
+  ];
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ */
+function drupalpod_build_info_theme_registry_alter(array &$theme_registry): void {
+  if (!isset($theme_registry['status_report_general_info'])) {
+    return;
+  }
+
+  $module_path = \Drupal::service('extension.list.module')->getPath('drupalpod_build_info');
+  $theme_registry['status_report_general_info']['path'] = $module_path . '/templates';
+  $theme_registry['status_report_general_info']['template'] = 'status-report-general-info';
+}
+
+/**
+ * Loads build metadata from the generated JSON file.
+ */
+function _drupalpod_build_info_load_data(): ?array {
+  $path = _drupalpod_build_info_file_path();
+  if (!is_readable($path)) {
+    return NULL;
+  }
+
+  $contents = file_get_contents($path);
+  if ($contents === FALSE) {
+    return NULL;
+  }
+
+  $data = json_decode($contents, TRUE);
+  return is_array($data) ? $data : NULL;
+}
+
+/**
+ * Formats a module entry for display in the status report.
+ */
+function _drupalpod_build_info_format_module(array $module) {
+  $machine_name = (string) ($module['machine_name'] ?? 'unknown');
+  $details = [];
+  $composer_version = (string) ($module['composer_version'] ?? '');
+  $git_ref = (string) ($module['git_ref'] ?? '');
+  $git_branch = (string) ($module['git_branch'] ?? '');
+  $commit = _drupalpod_build_info_extract_commit($git_ref);
+
+  if ($git_branch !== '') {
+    $details[] = t('branch @branch', [
+      '@branch' => $git_branch,
+    ]);
+  }
+
+  if ($composer_version !== '') {
+    $details[] = t('composer @version', [
+      '@version' => $composer_version,
+    ]);
+  }
+
+  if ($commit !== '') {
+    $details[] = t('commit @commit', [
+      '@commit' => $commit,
+    ]);
+  }
+  elseif ($git_ref !== '' && $git_ref !== $composer_version) {
+    $details[] = t('git @ref', [
+      '@ref' => $git_ref,
+    ]);
+  }
+
+  if ($git_branch === '' && $git_ref !== '' && $git_ref === $composer_version && strpos($git_ref, 'dev-') !== 0) {
+    $details = [
+      (string) t('tag @tag', ['@tag' => $git_ref]),
+    ];
+  }
+
+  if (!empty($module['issue_fork'])) {
+    $details[] = t('fork @fork', [
+      '@fork' => (string) $module['issue_fork'],
+    ]);
+  }
+  if (!empty($module['issue_branch'])) {
+    $details[] = t('issue @branch', [
+      '@branch' => (string) $module['issue_branch'],
+    ]);
+  }
+
+  $item = [
+    'term' => $machine_name,
+    'value' => implode(', ', array_map('strval', $details)),
+  ];
+
+  if ($git_ref !== '' && $commit !== '' && $git_ref !== $commit) {
+    $item['description'] = (string) t('git describe @ref', [
+      '@ref' => $git_ref,
+    ]);
+  }
+
+  return $item;
+}
+
+/**
+ * Formats the requested AI or test target from build inputs.
+ */
+function _drupalpod_build_info_format_requested_target(
+  $label,
+  string $module,
+  string $version,
+  string $fork,
+  string $branch,
+) {
+  $details = [$module];
+
+  if ($version !== '') {
+    $details[] = t('version @version', ['@version' => $version]);
+  }
+  if ($fork !== '') {
+    $details[] = t('fork @fork', ['@fork' => $fork]);
+  }
+  if ($branch !== '') {
+    $details[] = t('issue @branch', ['@branch' => $branch]);
+  }
+
+  return [
+    'title' => $label,
+    'value' => implode(', ', array_map('strval', $details)),
+  ];
+}
+
+/**
+ * Formats the template row with the resolved Drupal version inline.
+ */
+function _drupalpod_build_info_format_template_value(string $template, string $version): string {
+  if ($version === '') {
+    return $template;
+  }
+
+  return (string) t('@template, version @version', [
+    '@template' => $template,
+    '@version' => $version,
+  ]);
+}
+
+/**
+ * Extracts a short commit hash from git describe output when available.
+ */
+function _drupalpod_build_info_extract_commit(string $git_ref): string {
+  if ($git_ref === '') {
+    return '';
+  }
+
+  if (preg_match('/-g([0-9a-f]{7,})$/', $git_ref, $matches) === 1) {
+    return $matches[1];
+  }
+
+  if (preg_match('/^[0-9a-f]{7,}$/', $git_ref) === 1) {
+    return $git_ref;
+  }
+
+  return '';
+}
+
+/**
+ * Returns the expected build metadata file path.
+ */
+function _drupalpod_build_info_file_path(): string {
+  return dirname(DRUPAL_ROOT) . '/build/drupalpod-build-info.json';
+}

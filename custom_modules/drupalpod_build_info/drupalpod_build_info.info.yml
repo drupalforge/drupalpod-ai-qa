@@ -1,0 +1,5 @@
+name: 'DrupalPod Build Info'
+type: module
+description: 'Displays DrupalPod AI QA build metadata on the status report.'
+core_version_requirement: ^11
+package: Custom

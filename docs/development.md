@@ -11,6 +11,8 @@ Key scripts live in `scripts/`:
 - `scripts/resolve_modules.sh` — Composer resolution plan
 - `scripts/clone_modules.sh` — git checkouts based on the plan
 - `scripts/composer_setup.sh` — build composer.json + path repos
+- `scripts/install_build_info_module.sh` — symlinks the repo-managed status-report module into the generated docroot
+- `scripts/write_build_info.sh` — exports resolved build metadata for Drupal to display on the status report
 
 ## Root Paths
 
@@ -76,3 +78,13 @@ Avoid editing `.ddev/config.yaml` directly.
 AI modules are cloned into `repos/` and symlinked into `docroot/`.
 If a module is enabled but not a git repo, `init.sh` warns so you can
 track missing checkouts.
+
+## Build Metadata in Drupal
+
+The repo-managed custom module at `custom_modules/drupalpod_build_info` is
+symlinked into the generated Drupal docroot during `scripts/init.sh`.
+
+After install/update, `scripts/write_build_info.sh` writes
+`docroot/build/drupalpod-build-info.json` from `logs/ai-manifest.json` plus the
+checked-out git refs in `repos/`. The module reads that file and exposes the
+result on `/admin/reports/status`.
