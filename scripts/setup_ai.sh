@@ -2,7 +2,44 @@
 set -eu -o pipefail
 
 echo
-time $DRUSH -n en ai_provider_litellm
+
+if [ -n "${DP_AI_PROVIDER:-}" ]; then
+  case "${DP_AI_PROVIDER}" in
+    openai)
+      provider_module="ai_provider_openai"
+      qa_provider="openai"
+      ;;
+    claude|anthropic)
+      provider_module="ai_provider_anthropic"
+      qa_provider="anthropic"
+      ;;
+    amazee|amazeeai|amazeeio)
+      provider_module="ai_provider_amazeeio"
+      qa_provider=""
+      ;;
+    *)
+      echo "Unsupported DP_AI_PROVIDER value: ${DP_AI_PROVIDER}"
+      exit 1
+      ;;
+  esac
+
+  time $DRUSH -n en "${provider_module}" drupalpod_ai_qa
+
+  if [ -n "${qa_provider}" ]; then
+    # For QA-managed providers, install only what we need and let the custom
+    # module handle provider defaults plus API key prompting.
+    $DRUSH -n php:eval "\Drupal::service('drupalpod_ai_qa.provider_manager')->applyProvider('${qa_provider}');"
+  else
+    # amazee.ai already has a native onboarding/provisioning flow, so keep
+    # using the recipe path rather than the DrupalPod QA key prompt flow.
+    $DRUSH -q recipe ../recipes/drupal_cms_ai --input=drupal_cms_ai.provider=amazeeio
+    $DRUSH -n php:eval "\Drupal::service('drupalpod_ai_qa.provider_manager')->resetProviderSelection();"
+  fi
+
+  return 0
+fi
+
+time $DRUSH -n en ai_provider_litellm drupalpod_ai_qa
 $DRUSH -n key-save litellm_api_key --label="LiteLLM API key" --key-provider=env --key-provider-settings='{
   "env_variable": "DP_AI_VIRTUAL_KEY",
   "base64_encoded": false,

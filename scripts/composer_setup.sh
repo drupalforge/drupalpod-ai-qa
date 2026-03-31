@@ -200,3 +200,13 @@ else
         drupal/search_api_db \
         drupal/token
 fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DEV DEPENDENCIES (PHPUnit / testing tools)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if [ "${DP_NO_DEV:-0}" != "1" ]; then
+    echo "Adding dev dependencies (drupal/core-dev, phpspec/prophecy-phpunit)..."
+    composer require --dev -n --no-update \
+        "drupal/core-dev":* \
+        "phpspec/prophecy-phpunit":^2
+fi

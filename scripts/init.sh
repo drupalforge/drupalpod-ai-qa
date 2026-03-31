@@ -188,7 +188,7 @@ else
 fi
 
 # Install repo-managed custom support modules into the generated Drupal docroot.
-source "$SCRIPT_DIR/install_build_info_module.sh"
+source "$SCRIPT_DIR/link_custom_modules.sh"
 
 # Optionally skip dev dependencies (PHPStan, testing tools, etc.) for faster
 # installs when development tooling isn't required. Enable with DP_NO_DEV=1.
@@ -289,7 +289,7 @@ if [ "${DP_REBUILD:-0}" = "1" ] || ! $DRUSH status --field=bootstrap | grep -q "
   fi
 
   # AI setup (if available).
-  if [ -n "${DP_AI_VIRTUAL_KEY:-}" ]; then
+  if [ -n "${DP_AI_PROVIDER:-}" ] || [ -n "${DP_AI_VIRTUAL_KEY:-}" ]; then
     source "$SCRIPT_DIR/setup_ai.sh"
   fi
 

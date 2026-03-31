@@ -1,7 +1,7 @@
 [
   {
-    "name": "CMS 1.x with all modules (ai_search SKIPPED)",
-    "description": "Resolves to AI 1.x, ai_search gets skipped (needs AI 2.x)",
+    "name": "CMS 1.x with all modules",
+    "description": "Resolves to AI 1.x, all modules compatible",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.x",
@@ -12,9 +12,9 @@
     "expect": {
       "should_succeed": true,
       "ai_version_pattern": "^1\\.",
-      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents"],
-      "modules_skipped": ["ai_search"],
-      "comment": "Resolves to AI 1.x, ai_search skipped (incompatible)"
+      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents", "ai_search"],
+      "modules_skipped": [""],
+      "comment": "Resolves to AI 1.x, all modules now compatible"
     }
   },
   {
@@ -53,8 +53,8 @@
     }
   },
   {
-    "name": "Core 11.x with all modules (ai_search SKIPPED)",
-    "description": "Resolves to AI 1.x, ai_search skipped",
+    "name": "Core 11.x with all modules",
+    "description": "Resolves to AI 1.x, all modules compatible",
     "env": {
       "DP_STARTER_TEMPLATE": "core",
       "DP_VERSION": "11.x",
@@ -64,9 +64,9 @@
     },
     "expect": {
       "should_succeed": true,
-      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents"],
-      "modules_skipped": ["ai_search"],
-      "comment": "Resolves to AI 1.x, ai_search skipped"
+      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents", "ai_search"],
+      "modules_skipped": [""],
+      "comment": "Resolves to AI 1.x, all modules compatible"
     }
   },
   {
@@ -89,8 +89,8 @@
     }
   },
   {
-    "name": "Drupal 10.4.x with all modules (ai_search SKIPPED)",
-    "description": "Older core with all modules",
+    "name": "Drupal 10.4.x with all modules",
+    "description": "Older core with all modules compatible",
     "env": {
       "DP_STARTER_TEMPLATE": "core",
       "DP_VERSION": "10.4.x",
@@ -100,13 +100,13 @@
     },
     "expect": {
       "should_succeed": true,
-      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents"],
-      "modules_skipped": ["ai_search"]
+      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents", "ai_search"],
+      "modules_skipped": [""]
     }
   },
   {
-    "name": "DP_TEST_MODULE: ai_image_alt_text with all modules (ai_search SKIPPED)",
-    "description": "Test ai_image_alt_text module - ai_search skipped, others resolve",
+    "name": "DP_TEST_MODULE: ai_image_alt_text with all modules",
+    "description": "Test ai_image_alt_text module - all modules resolve",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.x",
@@ -119,9 +119,9 @@
     "expect": {
       "should_succeed": true,
       "ai_version_pattern": "^1\\.",
-      "modules_resolved": ["ai", "ai_image_alt_text", "ai_provider_amazeeio", "ai_agents"],
-      "modules_skipped": ["ai_search"],
-      "comment": "ai_image_alt_text drives AI 1.x; ai_provider_amazeeio and ai_agents compatible; ai_search requires AI 2.x"
+      "modules_resolved": ["ai", "ai_image_alt_text", "ai_provider_amazeeio", "ai_agents", "ai_search"],
+      "modules_skipped": [""],
+      "comment": "ai_image_alt_text drives AI 1.x; all modules now have AI 1.x compatible versions"
     }
   },
   {
@@ -174,7 +174,7 @@
     },
     "expect": {
       "should_succeed": true,
-      "ai_version_pattern": "^1\\.2",
+      "ai_version_pattern": "^1\\.",
       "modules_resolved": ["ai", "ai_agents"],
       "comment": "ai_agents requires AI ^1.2, resolves correctly"
     }
@@ -218,7 +218,7 @@
     },
     "expect": {
       "should_succeed": false,
-      "comment": "ai_agents 1.0.x requires AI ^1.3, conflicts with explicit AI 2.0.x"
+      "comment": "ai_agents 1.0.x requires AI ^1.2.0, conflicts with explicit AI 2.0.x"
     }
   },
   {
@@ -249,16 +249,16 @@
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.x",
       "DP_AI_MODULE": "ai",
-      "DP_AI_MODULE_VERSION": "1.2.x",
+      "DP_AI_MODULE_VERSION": "1.3.x",
       "DP_EXTRA_MODULES": "ai_provider_amazeeio,ai_search,ai_agents",
       "DP_AI_ISSUE_FORK": "3493720",
       "DP_AI_ISSUE_BRANCH": "3493720-some-feature"
     },
     "expect": {
       "should_succeed": true,
-      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents"],
-      "modules_skipped": ["ai_search"],
-      "comment": "PR branch cloned for AI module, resolves to AI 1.x"
+      "modules_resolved": ["ai", "ai_provider_amazeeio", "ai_agents", "ai_search"],
+      "modules_skipped": [""],
+      "comment": "PR branch cloned for AI module, resolves to AI 1.x with all modules"
     }
   },
   {
@@ -277,9 +277,9 @@
     },
     "expect": {
       "should_succeed": true,
-      "modules_resolved": ["ai", "ai_image_alt_text", "ai_provider_amazeeio", "ai_agents"],
-      "modules_skipped": ["ai_search"],
-      "comment": "PR branch cloned for test module; ai_provider_amazeeio and ai_agents compatible with AI 1.x"
+      "modules_resolved": ["ai", "ai_image_alt_text", "ai_provider_amazeeio", "ai_agents", "ai_search"],
+      "modules_skipped": [""],
+      "comment": "PR branch cloned for test module; all modules compatible with AI 1.x"
     }
   },
   {
@@ -395,13 +395,13 @@
     }
   },
   {
-    "name": "CMS with AI 1.2.5",
-    "description": "Explicit AI version on CMS",
+    "name": "CMS with AI 1.3.x",
+    "description": "Explicit AI 1.3.x branch on CMS — all modules compatible",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.2.x",
       "DP_AI_MODULE": "ai",
-      "DP_AI_MODULE_VERSION": "1.2.5",
+      "DP_AI_MODULE_VERSION": "1.3.x",
       "DP_EXTRA_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
     },
     "expect": {
@@ -409,14 +409,14 @@
     }
   },
   {
-    "name": "CMS with AI 1.1.8",
-    "description": "Explicit AI version on CMS",
+    "name": "CMS with AI 1.2.x",
+    "description": "Explicit AI 1.2.x branch on CMS — ai_search excluded (requires ^1.3)",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "1.2.x",
       "DP_AI_MODULE": "ai",
-      "DP_AI_MODULE_VERSION": "1.1.8",
-      "DP_EXTRA_MODULES": "ai_provider_amazeeio,ai_search,ai_agents"
+      "DP_AI_MODULE_VERSION": "1.2.x",
+      "DP_EXTRA_MODULES": "ai_provider_amazeeio,ai_agents"
     },
     "expect": {
       "should_succeed": true

@@ -2,3 +2,8 @@ status_report:
   css:
     component:
       css/drupalpod-build-info.css: {}
+
+status_report_gin:
+  css:
+    component:
+      css/drupalpod-build-info-gin.css: {}

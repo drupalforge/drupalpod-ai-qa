@@ -123,20 +123,20 @@
     }
   },
   {
-    "name": "MODE_AI_PINNED (1): AI 1.2.5 auto-detects CMS",
-    "description": "AI pinned, CMS should auto-detect compatible version",
+    "name": "MODE_AI_PINNED (1): AI 1.3.x auto-detects CMS",
+    "description": "AI pinned to 1.3.x branch, CMS should auto-detect compatible version",
     "env": {
       "DP_STARTER_TEMPLATE": "cms",
       "DP_VERSION": "",
       "DP_AI_MODULE": "ai",
-      "DP_AI_MODULE_VERSION": "1.2.5",
+      "DP_AI_MODULE_VERSION": "1.3.x",
       "DP_EXTRA_MODULES": ""
     },
     "expect": {
       "should_succeed": true,
       "resolution_mode": 1,
-      "ai_version_pattern": "^1\\.2\\.5",
-      "comment": "MODE_AI_PINNED - AI 1.2.5 drives CMS auto-detection"
+      "ai_version_pattern": "(^1\\.3\\.|^dev-1\\.3\\.x$)",
+      "comment": "MODE_AI_PINNED - AI 1.3.x branch drives CMS auto-detection"
     }
   },
   {

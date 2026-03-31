@@ -11,7 +11,7 @@ Key scripts live in `scripts/`:
 - `scripts/resolve_modules.sh` — Composer resolution plan
 - `scripts/clone_modules.sh` — git checkouts based on the plan
 - `scripts/composer_setup.sh` — build composer.json + path repos
-- `scripts/install_build_info_module.sh` — symlinks the repo-managed status-report module into the generated docroot
+- `scripts/link_custom_modules.sh` — symlinks repo-managed custom modules into the generated docroot
 - `scripts/write_build_info.sh` — exports resolved build metadata for Drupal to display on the status report
 
 ## Root Paths

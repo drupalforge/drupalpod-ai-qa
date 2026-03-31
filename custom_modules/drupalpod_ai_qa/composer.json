@@ -1,0 +1,14 @@
+{
+    "name": "drupal/drupalpod_ai_qa",
+    "type": "drupal-module",
+    "description": "DrupalPod AI QA module — temporary AI provider key setup for QA environments.",
+    "require": {
+        "drupal/ai": "^1",
+        "drupal/key": "^1.17",
+        "drupal/easy_encryption": "^1.0"
+    },
+    "suggest": {
+        "drupal/ai_provider_openai": "For testing with OpenAI provider",
+        "drupal/ai_provider_anthropic": "For testing with Anthropic provider"
+    }
+}

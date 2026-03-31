@@ -1,0 +1,18 @@
+services:
+  drupalpod_ai_qa.provider_manager:
+    class: Drupal\drupalpod_ai_qa\AiQaProviderManager
+    arguments:
+      - '@config.factory'
+      - '@entity_type.manager'
+      - '@state'
+      - '@datetime.time'
+      - '@module_handler'
+      - '@ai.provider'
+      - '@logger.factory'
+
+  drupalpod_ai_qa.key_expiry_subscriber:
+    class: Drupal\drupalpod_ai_qa\EventSubscriber\KeyExpirySubscriber
+    arguments:
+      - '@drupalpod_ai_qa.provider_manager'
+    tags:
+      - { name: event_subscriber }

@@ -1,0 +1,11 @@
+name: DrupalPod AI QA
+type: module
+description: Provides temporary AI provider key setup for QA environments.
+package: DrupalPod
+core_version_requirement: ^10.4 || ^11
+configure: drupalpod_ai_qa.api_key_form
+dependencies:
+  - ai:ai
+  - easy_encryption:easy_encryption
+  - key:key
+  - user:user

@@ -92,6 +92,45 @@ export DP_TEST_MODULE_VERSION=${DP_TEST_MODULE_VERSION:-''}
 export DP_TEST_MODULE_ISSUE_FORK=${DP_TEST_MODULE_ISSUE_FORK:-''}
 export DP_TEST_MODULE_ISSUE_BRANCH=${DP_TEST_MODULE_ISSUE_BRANCH:-''}
 
+# Default to amazeeai for CMS if no provider is specified.
+# Set DP_AI_PROVIDER=NULL to explicitly disable AI provider setup.
+# (Core template is excluded — it does not have the drupal_cms_ai recipe.)
+if [ "${DP_AI_PROVIDER:-}" = "NULL" ]; then
+    export DP_AI_PROVIDER=''
+    echo "  → AI provider disabled (NULL)"
+elif [ -z "${DP_AI_PROVIDER:-}" ] && [ "${DP_STARTER_TEMPLATE:-}" = "cms" ]; then
+    export DP_AI_PROVIDER='amazeeai'
+    echo "  → No AI provider specified, defaulting to: amazeeai"
+fi
+
+# If DP_AI_PROVIDER is set, ensure the provider module is included in DP_EXTRA_MODULES
+# so it gets pulled from repos and resolved via Composer.
+if [ -n "${DP_AI_PROVIDER:-}" ]; then
+    case "${DP_AI_PROVIDER}" in
+        openai)
+            provider_module="ai_provider_openai"
+            ;;
+        claude|anthropic)
+            provider_module="ai_provider_anthropic"
+            ;;
+        amazeeai)
+            provider_module="ai_provider_amazeeio"
+            ;;
+        *)
+            echo "ERROR: Unsupported DP_AI_PROVIDER value: ${DP_AI_PROVIDER}" >&2
+            exit 1
+            ;;
+    esac
+
+    # Add provider module to DP_EXTRA_MODULES if not already present
+    # Check for module name (handles version constraints like ai_provider_openai@2.0.x)
+    if [ -z "${DP_EXTRA_MODULES:-}" ]; then
+        export DP_EXTRA_MODULES="${provider_module}"
+    elif ! echo ",${DP_EXTRA_MODULES}," | grep -q "[,]${provider_module}[@:,]\\|[,]${provider_module}[,]"; then
+        export DP_EXTRA_MODULES="${DP_EXTRA_MODULES},${provider_module}"
+    fi
+fi
+
 # Hard limit on the number of extra modules that can be requested.
 # To change the limit, update MAX_EXTRA_MODULES below — it is referenced
 # throughout the validation logic so there is only one place to edit.

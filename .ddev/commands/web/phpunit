@@ -6,7 +6,7 @@
 
 mkdir -p /var/www/html/web/sites/simpletest/browser_output
 
-cd web
+cd docroot/web
 
 BROWSERTEST_OUTPUT_DIRECTORY=/var/www/html/web/sites/simpletest/browser_output \
 BROWSERTEST_OUTPUT_BASE_URL=http://localhost:8080 \

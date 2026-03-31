@@ -9,6 +9,14 @@
  * Implements hook_preprocess_HOOK() for status_report_general_info.
  */
 function drupalpod_build_info_preprocess_status_report_general_info(array &$variables): void {
+  $admin_theme = \Drupal::config('system.theme')->get('admin');
+  if ($admin_theme === 'gin') {
+    $variables['#attached']['library'][] = 'drupalpod_build_info/status_report_gin';
+  }
+  else {
+    $variables['#attached']['library'][] = 'drupalpod_build_info/status_report';
+  }
+
   $data = _drupalpod_build_info_load_data();
 
   if ($data === NULL) {

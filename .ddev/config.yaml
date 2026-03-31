@@ -73,6 +73,16 @@ web_environment:
     - # Optional: local or cloud API key for LiteLLM / provider testing (empty by default)
     - # ---------------------------------------------------------------------------
     - DP_AI_VIRTUAL_KEY=
+    - # Optional: preconfigure an AI provider for QA environments.
+    - # Supported values:
+    - #   * openai
+    - #   * anthropic (preferred)
+    - #   * claude (alias for anthropic)
+    - #   * amazee / amazeeai / amazeeio
+    - # Behavior:
+    - #   * openai + anthropic use the DrupalPod AI QA key-prompt flow
+    - #   * amazee variants use the native amazee recipe/provisioning flow
+    - DP_AI_PROVIDER=amazee
 
     - # ---------------------------------------------------------------------------
     - # Set to 1 if you wish to rebuild the whole project from scratch. This is

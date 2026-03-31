@@ -1,3 +1,5 @@
+amazee
+amazeeai
 amazeeio
 argjson
 behaviour
@@ -12,6 +14,7 @@ drupalforge
 inputmask
 klaro
 litellm
+newprovider
 ofer
 popperjs
 preclone
