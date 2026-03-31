@@ -151,6 +151,31 @@ require_issue_fork_matches_module() {
     fi
 }
 
+# Resolve DP_AI_PROVIDER to provider_module and qa_provider variables.
+# Sets provider_module and qa_provider in the caller's scope.
+# qa_provider is empty for providers with a native provisioning flow (e.g. amazee).
+resolve_ai_provider() {
+    local value="$1"
+    case "$value" in
+        openai)
+            provider_module="ai_provider_openai"
+            qa_provider="openai"
+            ;;
+        claude|anthropic)
+            provider_module="ai_provider_anthropic"
+            qa_provider="anthropic"
+            ;;
+        amazee|amazeeai|amazeeio)
+            provider_module="ai_provider_amazeeio"
+            qa_provider=""
+            ;;
+        *)
+            log_error "Unsupported DP_AI_PROVIDER value: $value"
+            return 1
+            ;;
+    esac
+}
+
 reset_module_composer_json_if_dirty() {
     local repo_dir=$1
 

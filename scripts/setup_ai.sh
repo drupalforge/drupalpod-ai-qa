@@ -1,27 +1,15 @@
 #!/usr/bin/env bash
 set -eu -o pipefail
 
+if [ -z "${SCRIPT_DIR:-}" ]; then
+    export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+source "$SCRIPT_DIR/lib/bootstrap.sh"
+
 echo
 
 if [ -n "${DP_AI_PROVIDER:-}" ]; then
-  case "${DP_AI_PROVIDER}" in
-    openai)
-      provider_module="ai_provider_openai"
-      qa_provider="openai"
-      ;;
-    claude|anthropic)
-      provider_module="ai_provider_anthropic"
-      qa_provider="anthropic"
-      ;;
-    amazee|amazeeai|amazeeio)
-      provider_module="ai_provider_amazeeio"
-      qa_provider=""
-      ;;
-    *)
-      echo "Unsupported DP_AI_PROVIDER value: ${DP_AI_PROVIDER}"
-      exit 1
-      ;;
-  esac
+  resolve_ai_provider "${DP_AI_PROVIDER}"
 
   time $DRUSH -n en "${provider_module}" drupalpod_ai_qa
 

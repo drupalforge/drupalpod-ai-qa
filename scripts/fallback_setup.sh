@@ -106,21 +106,7 @@ fi
 # If DP_AI_PROVIDER is set, ensure the provider module is included in DP_EXTRA_MODULES
 # so it gets pulled from repos and resolved via Composer.
 if [ -n "${DP_AI_PROVIDER:-}" ]; then
-    case "${DP_AI_PROVIDER}" in
-        openai)
-            provider_module="ai_provider_openai"
-            ;;
-        claude|anthropic)
-            provider_module="ai_provider_anthropic"
-            ;;
-        amazeeai)
-            provider_module="ai_provider_amazeeio"
-            ;;
-        *)
-            echo "ERROR: Unsupported DP_AI_PROVIDER value: ${DP_AI_PROVIDER}" >&2
-            exit 1
-            ;;
-    esac
+    resolve_ai_provider "${DP_AI_PROVIDER}"
 
     # Add provider module to DP_EXTRA_MODULES if not already present
     # Check for module name (handles version constraints like ai_provider_openai@2.0.x)
