@@ -11,19 +11,23 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\State\StateInterface;
-use Drupal\Core\Url;
 use Drupal\key\KeyInterface;
 use Drupal\key\Plugin\KeyProviderSettableValueInterface;
 
 /**
- * Manages QA AI provider setup and temporary key storage.
+ * Manages QA AI provider setup and QA AI API key storage.
  */
 final class AiQaProviderManager {
 
   /**
-   * The settings string.
+   * The single managed key entity ID, shared across all providers.
    */
-  private const SETTINGS = 'drupalpod_ai_qa.settings';
+  public const KEY_ID = 'drupalpod_ai_qa';
+
+  /**
+   * The managed key entity label.
+   */
+  private const KEY_LABEL = 'DrupalPod AI Provider Key';
 
   /**
    * The expiry state key.
@@ -31,7 +35,7 @@ final class AiQaProviderManager {
   private const EXPIRY_STATE_KEY = 'drupalpod_ai_qa.key_expires_at';
 
   /**
-   * Time-to-live for temporary keys in seconds.
+   * Time-to-live for QA keys in seconds.
    */
   private const TTL = 4 * 3600;
 
@@ -71,6 +75,24 @@ final class AiQaProviderManager {
    */
   private ?bool $hasUsableKeyResult = NULL;
 
+  /**
+   * Constructs the QA provider manager.
+   *
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
+   *   The config factory.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   The entity type manager.
+   * @param \Drupal\Core\State\StateInterface $state
+   *   The state service.
+   * @param \Drupal\Component\Datetime\TimeInterface $time
+   *   The time service.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
+   *   The module handler.
+   * @param \Drupal\ai\AiProviderPluginManager $aiProviderManager
+   *   The AI provider plugin manager.
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $loggerFactory
+   *   The logger factory.
+   */
   public function __construct(
     private readonly ConfigFactoryInterface $configFactory,
     private readonly EntityTypeManagerInterface $entityTypeManager,
@@ -87,9 +109,7 @@ final class AiQaProviderManager {
           'openai_moderation' => FALSE,
         ],
       ]),
-      'amazeeai' => $this->buildProviderDefinition('amazeeio', 'amazee.ai', [
-        'provider_id' => 'amazeeai',
-      ]),
+      'amazeeai' => $this->buildProviderDefinition('amazeeio', 'amazee.ai'),
     ];
   }
 
@@ -112,37 +132,39 @@ final class AiQaProviderManager {
   }
 
   /**
-   * Returns the currently configured provider definition.
-   *
-   * @return array<string, mixed>|null
-   *   The provider definition, or NULL if none is configured.
-   */
-  public function getSelectedProviderDefinition(): ?array {
-    $provider = $this->getSelectedProviderId();
-    return $provider ? $this->providers[$provider] : NULL;
-  }
-
-  /**
    * Returns the canonical selected provider ID.
    *
    * @return string|null
-   *   The canonical provider ID, or NULL if none is configured.
+   *   The canonical provider ID, or NULL if no provider uses the QA key.
    */
   public function getSelectedProviderId(): ?string {
     if (!$this->selectedProviderIdLoaded) {
-      $this->selectedProviderId = $this->normalizeProvider(
-        $this->configFactory->get(self::SETTINGS)->get('selected_provider')
-      );
+      $this->selectedProviderId = $this->getManagedKeyProviderFromDefaults()
+        ?? $this->getManagedKeyProviderFromProviderConfig();
       $this->selectedProviderIdLoaded = TRUE;
     }
     return $this->selectedProviderId;
   }
 
   /**
+   * Returns the selected provider label.
+   *
+   * @return string|null
+   *   The selected provider label, or NULL if none is configured.
+   */
+  public function getSelectedProviderLabel(): ?string {
+    $provider = $this->getSelectedProviderId();
+    if ($provider === NULL) {
+      return NULL;
+    }
+
+    return $this->providers[$provider]['label'] ?? NULL;
+  }
+
+  /**
    * Applies QA defaults for the selected provider.
    *
    * This method:
-   * - Sets the selected provider in configuration
    * - Creates or updates the managed key entity
    * - Configures the provider module to use the managed key
    * - Sets default models for AI operations
@@ -155,9 +177,10 @@ final class AiQaProviderManager {
    *   TRUE if the provider was applied successfully, FALSE otherwise.
    */
   public function applyProvider(string $provider): bool {
+    $original = $provider;
     $provider = $this->normalizeProvider($provider);
     if ($provider === NULL) {
-      $this->loggerFactory->get('drupalpod_ai_qa')->error('Invalid provider: @provider', ['@provider' => $provider]);
+      $this->loggerFactory->get('drupalpod_ai_qa')->error('Invalid provider: @provider', ['@provider' => $original]);
       return FALSE;
     }
 
@@ -174,26 +197,30 @@ final class AiQaProviderManager {
     $this->selectedProviderIdLoaded = FALSE;
     $this->selectedProviderId = NULL;
 
-    $this->clearManagedKeys();
-    $this->configFactory->getEditable(self::SETTINGS)
-      ->set('selected_provider', $provider)
-      ->save();
+    $this->clearKeyValue();
 
-    $this->ensureKeyEntity($provider);
+    $setup_data = $this->getProviderSetupData($definition);
 
-    $setup_data = $this->getProviderSetupData($provider, $definition);
+    // If the provider already has its own key configured (not our managed key),
+    // leave its config untouched — we don't want to overwrite a permanent key
+    // or subject it to the QA TTL expiry.
+    $hasOwnKey = $this->providerUsesOwnKey($definition);
 
-    $provider_config = $this->configFactory->getEditable($definition['config_name']);
-    $provider_config->set($setup_data['key_config_name'] ?? $definition['config_key'], $definition['key_id']);
-    foreach (($definition['extra_config'] ?? []) as $key => $value) {
-      $provider_config->set($key, $value);
+    if (!$hasOwnKey) {
+      $this->ensureKeyEntity();
+
+      $provider_config = $this->configFactory->getEditable($definition['config_name']);
+      $provider_config->set($setup_data['key_config_name'] ?? $definition['config_key'], self::KEY_ID);
+      foreach (($definition['extra_config'] ?? []) as $key => $value) {
+        $provider_config->set($key, $value);
+      }
+      $provider_config->save();
     }
-    $provider_config->save();
 
     $defaults = [];
     foreach (($setup_data['default_models'] ?? []) as $operation => $model_id) {
       $defaults[$operation] = [
-        'provider_id' => $provider,
+        'provider_id' => $definition['plugin_id'],
         'model_id' => $model_id,
       ];
     }
@@ -217,75 +244,29 @@ final class AiQaProviderManager {
   }
 
   /**
-   * Stores a temporary API key for the configured provider.
+   * Records the expiry timestamp for a key that was just saved.
    *
-   * The key is stored in a managed key entity and will expire after the TTL
-   * duration (see self::TTL constant).
+   * Called from hook_key_insert() / hook_key_update() so that the managed QA
+   * key expires after the TTL. If the key ID matches the managed QA key,
+   * provider caches are also reset.
    *
-   * @param string $api_key
-   *   The API key to store.
+   * @param string $key_id
+   *   The key entity ID that was saved.
    */
-  public function storeTemporaryKey(string $api_key): void {
-    $provider = $this->getSelectedProviderId();
-    if ($provider === NULL || $api_key === '') {
-      return;
-    }
-
-    $key = $this->ensureKeyEntity($provider);
-    $key->setKeyValue($api_key);
-    $key->save();
-
-    $this->resetProviderCaches($provider);
+  public function recordKeyExpiry(string $key_id): void {
     $this->state->set(self::EXPIRY_STATE_KEY, $this->time->getRequestTime() + self::TTL);
     $this->hasUsableKeyResult = NULL;
+
+    if ($key_id === self::KEY_ID) {
+      $provider = $this->getSelectedProviderId();
+      if ($provider !== NULL) {
+        $this->resetProviderCaches($provider);
+      }
+    }
   }
 
   /**
-   * Validates a submitted API key against the selected provider.
-   *
-   * @param string $api_key
-   *   The API key to validate.
-   *
-   * @return string|null
-   *   A user-facing error message, or NULL if the key validates.
-   */
-  public function validateTemporaryKey(string $api_key): ?string {
-    $provider = $this->getSelectedProviderId();
-    if ($provider === NULL || $api_key === '') {
-      return 'No AI provider is configured for this environment.';
-    }
-
-    try {
-      $this->resetProviderCaches($provider);
-
-      $provider_instance = $this->aiProviderManager->createInstance($provider);
-      $provider_instance->setAuthentication($api_key);
-
-      $host = $this->configFactory->get($this->providers[$provider]['config_name'])->get('host');
-      if (is_string($host) && $host !== '') {
-        $provider_instance->setConfiguration(['host' => $host]);
-      }
-
-      $models = $provider_instance->getConfiguredModels();
-      if ($models === []) {
-        return 'The API key could not be validated. Please double-check it and try again.';
-      }
-    }
-    catch (\Throwable $exception) {
-      $this->loggerFactory->get('drupalpod_ai_qa')->warning('Temporary AI key validation failed for provider @provider: @message', [
-        '@provider' => $provider,
-        '@message' => $exception->getMessage(),
-      ]);
-      return 'The API key could not be validated. Please double-check it and try again.';
-    }
-
-    return NULL;
-  }
-
-  /**
-   * Returns TRUE when the current provider has a non-expired key.
-   *
-   * This method automatically purges expired keys before checking.
+   * Returns TRUE when the managed QA key has a non-expired value.
    *
    * @return bool
    *   TRUE if a usable key exists, FALSE otherwise.
@@ -295,48 +276,22 @@ final class AiQaProviderManager {
       return $this->hasUsableKeyResult;
     }
 
-    // Check provider before state read — skips DB if no provider configured.
-    $provider = $this->getSelectedProviderId();
-    if ($provider === NULL) {
-      return $this->hasUsableKeyResult = FALSE;
-    }
-
     if ($this->purgeExpiredKey()) {
       return $this->hasUsableKeyResult = FALSE;
     }
 
-    $definition = $this->providers[$provider];
-    $key = $this->entityTypeManager->getStorage('key')->load($definition['key_id']);
+    $key = $this->entityTypeManager->getStorage('key')->load(self::KEY_ID);
     return $this->hasUsableKeyResult = ($key instanceof KeyInterface && $key->getKeyValue() !== '');
-  }
-
-  /**
-   * Returns the current key expiry timestamp.
-   *
-   * This method automatically purges expired keys before checking.
-   *
-   * @return int|null
-   *   The Unix timestamp when the key expires, or NULL if no key is set.
-   */
-  public function getKeyExpiry(): ?int {
-    $this->purgeExpiredKey();
-    $expiry = $this->state->get(self::EXPIRY_STATE_KEY);
-    return is_int($expiry) ? $expiry : NULL;
   }
 
   /**
    * Performs a lightweight request-time expiry check.
    *
-   * On the common path this avoids loading the key entity by returning early
-   * when no provider is configured or the stored expiry is still in the
-   * future. Missing or invalid expiry state falls through to the fail-closed
-   * purge logic.
+   * On the common path this avoids loading the key entity when the stored
+   * expiry is still in the future. Missing or invalid expiry state falls
+   * through to the fail-closed purge logic.
    */
   public function purgeExpiredKeyOnRequest(): void {
-    if ($this->getSelectedProviderId() === NULL) {
-      return;
-    }
-
     $expiry = $this->state->get(self::EXPIRY_STATE_KEY);
     if (is_int($expiry) && $expiry > $this->time->getRequestTime()) {
       return;
@@ -356,27 +311,123 @@ final class AiQaProviderManager {
   }
 
   /**
-   * Purges the temporary key once it has expired.
+   * Returns the stored expiry timestamp for the managed QA key.
    *
-   * This method is called automatically by hasUsableKey() and getKeyExpiry().
-   * It compares the stored expiry timestamp with the current time and clears
-   * the key value if the expiry has passed. Missing or invalid expiry state is
-   * treated as expired when a managed key value exists.
+   * @return int|null
+   *   The expiry timestamp, or NULL if none is recorded.
+   */
+  public function getKeyExpiry(): ?int {
+    $expiry = $this->state->get(self::EXPIRY_STATE_KEY);
+    return is_int($expiry) ? $expiry : NULL;
+  }
+
+  /**
+   * Validates that the selected provider can load its configured models.
+   *
+   * If the provider is also the default for one or more operations, this
+   * additionally verifies that the configured default model IDs still exist.
+   *
+   * @param string|null $api_key
+   *   An optional API key to authenticate the provider instance with before
+   *   validating. When NULL, the currently configured key is used.
+   *
+   * @return string|null
+   *   A user-facing validation error message, or NULL if validation passed.
+   */
+  public function validateSelectedProviderModels(?string $api_key = NULL): ?string {
+    $provider = $this->getSelectedProviderId();
+    if ($provider === NULL) {
+      return (string) t(
+        'No AI provider is currently configured to use the QA AI API key.',
+      );
+    }
+
+    $definition = $this->providers[$provider];
+
+    try {
+      $provider_instance = $this->aiProviderManager->createInstance($definition['plugin_id']);
+      if ($api_key !== NULL && $api_key !== '') {
+        $provider_instance->setAuthentication($api_key);
+      }
+      $provider_instance->getConfiguredModels();
+
+      $defaults = $this->configFactory->get('ai.settings')->get('default_providers') ?? [];
+      foreach ($defaults as $operation_type => $default_provider) {
+        if (($default_provider['provider_id'] ?? NULL) !== $definition['plugin_id']) {
+          continue;
+        }
+
+        $model_id = $default_provider['model_id'] ?? NULL;
+        if (!is_string($model_id) || $model_id === '') {
+          continue;
+        }
+
+        $models = $provider_instance->getConfiguredModels((string) $operation_type);
+        if (!array_key_exists($model_id, $models)) {
+          return (string) t('The default model "@model" could not be found for the @provider provider.', [
+            '@model' => $model_id,
+            '@provider' => $definition['label'],
+          ]);
+        }
+      }
+
+      return NULL;
+    }
+    catch (\Throwable $e) {
+      $this->loggerFactory->get('drupalpod_ai_qa')->warning('Provider model validation failed for @provider: @message', [
+        '@provider' => $provider,
+        '@message' => $e->getMessage(),
+      ]);
+
+      return (string) t('@provider model validation failed. Please verify the API key and available credits.', [
+        '@provider' => $definition['label'],
+      ]);
+    }
+  }
+
+  /**
+   * Validates a submitted QA AI API key for the selected provider.
+   *
+   * @param string $api_key
+   *   The submitted API key.
+   *
+   * @return string|null
+   *   A validation error, or NULL if the key is valid.
+   */
+  public function validateTemporaryKey(string $api_key): ?string {
+    return $this->validateSelectedProviderModels($api_key);
+  }
+
+  /**
+   * Stores the managed QA AI API key and records its expiry.
+   *
+   * @param string $api_key
+   *   The API key to store.
+   */
+  public function storeTemporaryKey(string $api_key): void {
+    $key = $this->ensureKeyEntity();
+    $key->setKeyValue($api_key);
+    $key->save();
+    $this->recordKeyExpiry(self::KEY_ID);
+  }
+
+  /**
+   * Purges the QA AI API key once it has expired.
+   *
+   * This method is called automatically by hasUsableKey(). It compares the
+   * stored expiry timestamp with the current time and clears the key value if
+   * the expiry has passed. Missing or invalid expiry state is treated as
+   * expired when a managed key value exists.
    *
    * @return bool
    *   TRUE when a key value was purged during this call, FALSE otherwise.
    */
   public function purgeExpiredKey(): bool {
-    $provider = $this->getSelectedProviderId();
-    if ($provider === NULL) {
-      return FALSE;
-    }
-
     $expiry = $this->state->get(self::EXPIRY_STATE_KEY);
 
     if (!is_int($expiry)) {
-      if ($this->hasStoredKeyValue($provider)) {
-        $this->clearKeyValue($provider);
+      if ($this->hasStoredKeyValue()) {
+        $this->clearKeyValue();
         $this->hasUsableKeyResult = NULL;
         return TRUE;
       }
@@ -387,92 +438,33 @@ final class AiQaProviderManager {
       return FALSE;
     }
 
-    $this->clearKeyValue($provider);
+    $this->clearKeyValue();
     $this->state->delete(self::EXPIRY_STATE_KEY);
     $this->hasUsableKeyResult = NULL;
     return TRUE;
   }
 
   /**
-   * Returns the current provider label.
-   *
-   * @return string|null
-   *   The human-readable provider label (e.g., 'OpenAI', 'Anthropic'), or NULL.
-   */
-  public function getSelectedProviderLabel(): ?string {
-    $definition = $this->getSelectedProviderDefinition();
-    return $definition['label'] ?? NULL;
-  }
-
-  /**
-   * Clears any QA-managed provider selection.
-   *
-   * This method:
-   * - Clears all managed key values
-   * - Resets the selected provider to empty
-   * - Deletes the key expiry timestamp
-   * - Resets the static cache.
-   */
-  public function resetProviderSelection(): void {
-    $this->clearManagedKeys();
-    $this->configFactory->getEditable(self::SETTINGS)
-      ->set('selected_provider', '')
-      ->save();
-    $this->state->delete(self::EXPIRY_STATE_KEY);
-
-    // Reset static cache.
-    $this->selectedProviderIdLoaded = FALSE;
-    $this->selectedProviderId = NULL;
-  }
-
-  /**
-   * Returns the AI settings URL after the key form is submitted.
-   *
-   * @return \Drupal\Core\Url
-   *   The URL object for the AI settings form.
-   */
-  public function getPostSubmitUrl(): Url {
-    return Url::fromRoute('ai.settings_form');
-  }
-
-  /**
-   * Returns route names that should not trigger the key prompt redirect.
-   *
-   * @return string[]
-   *   Allowed route names.
-   */
-  public function getAllowedRoutes(): array {
-    return [
-      'drupalpod_ai_qa.api_key_form',
-      'user.logout',
-    ];
-  }
-
-  /**
-   * Ensures the managed key entity exists for a provider.
+   * Ensures the managed key entity exists.
    *
    * If the key entity already exists, this method upgrades it to use
    * Easy Encryption. Otherwise, it creates a new key entity.
    *
-   * @param string $provider
-   *   The canonical provider ID.
-   *
    * @return \Drupal\key\KeyInterface
    *   The managed key entity.
    */
-  private function ensureKeyEntity(string $provider): KeyInterface {
-    $definition = $this->providers[$provider];
+  private function ensureKeyEntity(): KeyInterface {
     $storage = $this->entityTypeManager->getStorage('key');
-    $key = $storage->load($definition['key_id']);
+    $key = $storage->load(self::KEY_ID);
     if ($key instanceof KeyInterface) {
       $this->ensureSecureKeyProvider($key);
       return $key;
     }
 
     $key = $storage->create([
-      'id' => $definition['key_id'],
-      'label' => $definition['key_label'],
-      'description' => 'Temporary QA API key managed by DrupalPod AI QA.',
+      'id' => self::KEY_ID,
+      'label' => self::KEY_LABEL,
+      'description' => 'QA AI API key managed by DrupalPod AI QA.',
       'key_type' => 'authentication',
       'key_type_settings' => [],
       'key_provider' => 'easy_encrypted',
@@ -486,31 +478,13 @@ final class AiQaProviderManager {
   }
 
   /**
-   * Clears all managed keys.
-   *
-   * This method sets all managed key values to empty strings but does not
-   * delete the key entities themselves.
+   * Clears the managed key value without deleting the entity.
    */
-  private function clearManagedKeys(): void {
-    foreach (array_keys($this->providers) as $provider) {
-      $this->clearKeyValue($provider);
-    }
-  }
-
-  /**
-   * Clears a provider's managed key value.
-   *
-   * @param string $provider
-   *   The canonical provider ID.
-   */
-  private function clearKeyValue(string $provider): void {
-    $definition = $this->providers[$provider];
+  private function clearKeyValue(): void {
     $storage = $this->entityTypeManager->getStorage('key');
+    $storage->resetCache([self::KEY_ID]);
 
-    // Reset cache to ensure we load the current entity from the database.
-    $storage->resetCache([$definition['key_id']]);
-
-    $key = $storage->load($definition['key_id']);
+    $key = $storage->load(self::KEY_ID);
     if (!$key instanceof KeyInterface) {
       return;
     }
@@ -521,14 +495,15 @@ final class AiQaProviderManager {
     else {
       $key->setKeyValue('');
     }
+
     $key->save();
 
-    // Reset entity cache again after saving to ensure subsequent entity loads
-    // reflect the current stored configuration.
-    $storage->resetCache([$definition['key_id']]);
+    $storage->resetCache([self::KEY_ID]);
 
-    // Reset provider caches to ensure the change is reflected immediately.
-    $this->resetProviderCaches($provider);
+    $provider = $this->getSelectedProviderId();
+    if ($provider !== NULL) {
+      $this->resetProviderCaches($provider);
+    }
   }
 
   /**
@@ -545,34 +520,25 @@ final class AiQaProviderManager {
    *   The provider definition.
    */
   private function buildProviderDefinition(string $machine_name, string $label, array $overrides = []): array {
-    $provider_id = $overrides['provider_id'] ?? $machine_name;
-
-    unset($overrides['provider_id']);
-
     return $overrides + [
       'label' => $label,
+      'plugin_id' => $machine_name,
       'module' => 'ai_provider_' . $machine_name,
       'config_name' => 'ai_provider_' . $machine_name . '.settings',
       'config_key' => 'api_key',
-      'key_id' => 'drupalpod_ai_qa_' . $provider_id,
-      'key_label' => 'DrupalPod QA ' . $label . ' API key',
     ];
   }
 
   /**
    * Returns whether the managed key currently stores a non-empty value.
    *
-   * @param string $provider
-   *   The canonical provider ID.
-   *
    * @return bool
    *   TRUE when the key entity exists and contains a value.
    */
-  private function hasStoredKeyValue(string $provider): bool {
-    $definition = $this->providers[$provider];
+  private function hasStoredKeyValue(): bool {
     $storage = $this->entityTypeManager->getStorage('key');
-    $storage->resetCache([$definition['key_id']]);
-    $key = $storage->load($definition['key_id']);
+    $storage->resetCache([self::KEY_ID]);
+    $key = $storage->load(self::KEY_ID);
 
     return $key instanceof KeyInterface && $key->getKeyValue() !== '';
   }
@@ -580,19 +546,17 @@ final class AiQaProviderManager {
   /**
    * Retrieves setup data from the provider, with a local fallback if needed.
    *
-   * @param string $provider
-   *   The canonical provider plugin ID.
    * @param array<string, mixed> $definition
    *   The provider definition.
    *
    * @return array<string, mixed>
    *   Provider setup data.
    */
-  private function getProviderSetupData(string $provider, array $definition): array {
+  private function getProviderSetupData(array $definition): array {
     $setup_data = [];
 
     try {
-      $provider_instance = $this->aiProviderManager->createInstance($provider);
+      $provider_instance = $this->aiProviderManager->createInstance($definition['plugin_id']);
       $setup_data = $provider_instance->getSetupData();
     }
     catch (\Throwable) {
@@ -620,7 +584,7 @@ final class AiQaProviderManager {
    */
   private function resetProviderCaches(string $provider): void {
     try {
-      $provider_instance = $this->aiProviderManager->createInstance($provider);
+      $provider_instance = $this->aiProviderManager->createInstance($this->providers[$provider]['plugin_id']);
       if (method_exists($provider_instance, 'clearModelsCache')) {
         $provider_instance->clearModelsCache();
         return;
@@ -641,6 +605,83 @@ final class AiQaProviderManager {
       ->info('Provider @provider does not support cache clearing. Cached model lists may be stale. Run "drush cr" if needed.', [
         '@provider' => $provider,
       ]);
+  }
+
+  /**
+   * Returns whether a provider is using its own key instead of the QA key.
+   *
+   * @param array<string, mixed> $definition
+   *   The provider definition.
+   *
+   * @return bool
+   *   TRUE if the provider config points at another key.
+   */
+  private function providerUsesOwnKey(array $definition): bool {
+    $config_key = $definition['config_key'] ?? 'api_key';
+    $value = $this->configFactory->get($definition['config_name'])->get($config_key);
+
+    return is_string($value) && $value !== '' && $value !== self::KEY_ID;
+  }
+
+  /**
+   * Returns the managed-key provider referenced by AI defaults, if any.
+   *
+   * @return string|null
+   *   The canonical provider ID, or NULL if none matches.
+   */
+  private function getManagedKeyProviderFromDefaults(): ?string {
+    $defaults = $this->configFactory->get('ai.settings')->get('default_providers');
+    if (!is_array($defaults)) {
+      return NULL;
+    }
+
+    foreach ($defaults as $default_provider) {
+      if (!is_array($default_provider)) {
+        continue;
+      }
+
+      $provider = $this->normalizeProvider($default_provider['provider_id'] ?? NULL);
+      if ($provider === NULL) {
+        continue;
+      }
+
+      $definition = $this->providers[$provider] ?? NULL;
+      if (!is_array($definition)) {
+        continue;
+      }
+
+      $config_key = $definition['config_key'] ?? 'api_key';
+      $value = $this->configFactory
+        ->get($definition['config_name'])
+        ->get($config_key);
+
+      if ($value === self::KEY_ID) {
+        return $provider;
+      }
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Returns the first provider config that points at the managed QA key.
+   *
+   * @return string|null
+   *   The canonical provider ID, or NULL if none matches.
+   */
+  private function getManagedKeyProviderFromProviderConfig(): ?string {
+    foreach ($this->providers as $provider => $definition) {
+      $config_key = $definition['config_key'] ?? 'api_key';
+      $value = $this->configFactory
+        ->get($definition['config_name'])
+        ->get($config_key);
+
+      if ($value === self::KEY_ID) {
+        return $provider;
+      }
+    }
+
+    return NULL;
   }
 
   /**

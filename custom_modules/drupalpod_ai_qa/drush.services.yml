@@ -1,0 +1,7 @@
+services:
+  drupalpod_ai_qa.commands:
+    class: Drupal\drupalpod_ai_qa\Commands\AiQaCommands
+    arguments:
+      - '@drupalpod_ai_qa.provider_manager'
+    tags:
+      - { name: drush.command }

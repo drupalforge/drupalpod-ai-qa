@@ -128,7 +128,7 @@ Note: `DP_AI_VIRTUAL_KEY` support is not fully integrated or tested yet.
 | `DP_AI_MODULE_VERSION` | AI version (empty = auto-detect from test module) | Empty |
 | `DP_AI_ISSUE_FORK` | Fork name for AI PR testing (requires branch) | Empty |
 | `DP_AI_ISSUE_BRANCH` | Branch name for AI PR testing (requires fork) | Empty |
-| `DP_EXTRA_MODULES` | Extra modules to include (comma-separated, capped by MAX_EXTRA_MODULES) | `ai_provider_amazeeio,ai_search,ai_agents` |
+| `DP_EXTRA_MODULES` | Extra modules to include (comma-separated, capped by MAX_EXTRA_MODULES) | `ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text` |
 | `DP_FORCE_DEPENDENCIES` | `1` = lenient mode (relax constraints), `0` = strict | `1` |
 
 ### Test Module Settings
@@ -219,8 +219,7 @@ drupalpod-ai-qa/
 │   ├── fallback_setup.sh        # Default env vars + validation
 │   ├── resolve_modules.sh       # Composer resolution + plan
 │   ├── clone_modules.sh         # Git cloning based on plan
-│   ├── composer_setup.sh        # Generate composer.json + path repos
-│   └── setup_ai.sh              # Configure AI settings
+│   └── composer_setup.sh        # Generate composer.json + path repos
 ├── repos/                       # Git submodules (AI modules cloned here)
 ├── docroot/                     # Drupal install (generated, gitignored)
 ├── tests/                       # BATS test suite + scenario runner
@@ -237,7 +236,7 @@ drupalpod-ai-qa/
 4. **composer_setup.sh** - Creates Drupal project, adds path repositories
 5. **Composer operations** - Runs `composer update`
 6. **Drupal installation** - Runs `drush site-install`
-7. **setup_ai.sh** - Configures AI settings if `DP_AI_VIRTUAL_KEY` is set
+7. **AI provider setup** - Enables the provider module and `drupalpod_ai_qa` if `DP_AI_PROVIDER` is set; a Drush command applies the provider configuration
 
 ### Version Resolution
 

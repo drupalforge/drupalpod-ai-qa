@@ -288,13 +288,25 @@ if [ "${DP_REBUILD:-0}" = "1" ] || ! $DRUSH status --field=bootstrap | grep -q "
     time $DRUSH -n si "$PROFILE" --db-url="$DB_URL" --account-name=admin --account-pass=admin
   fi
 
-  # AI setup (if available).
-  if [ -n "${DP_AI_PROVIDER:-}" ] || [ -n "${DP_AI_VIRTUAL_KEY:-}" ]; then
-    source "$SCRIPT_DIR/setup_ai.sh"
-  fi
-
   # Enable AI modules.
   source "$SCRIPT_DIR/enable_ai_modules.sh"
+
+  # Enable the AI provider and QA module if a provider is configured.
+  # For amazee.ai the recipe must run first to provision the trial key before
+  # the explicit Drush provider-apply command runs.
+  if [ -n "${DP_AI_PROVIDER:-}" ]; then
+    resolve_ai_provider "${DP_AI_PROVIDER}"
+    if [ -z "${qa_provider}" ]; then
+      $DRUSH -q recipe ../recipes/drupal_cms_ai --input=drupal_cms_ai.provider=amazeeio
+    fi
+    time $DRUSH -n pm:enable "${provider_module}" drupalpod_ai_qa
+    if [ -n "${qa_provider}" ]; then
+      time $DRUSH -n drupalpod-ai-qa:apply-provider "${qa_provider}"
+    else
+      time $DRUSH -n drupalpod-ai-qa:apply-provider amazeeai
+    fi
+  fi
+
   time $DRUSH -n pm:enable drupalpod_build_info
 
   # Run any post-install tasks.

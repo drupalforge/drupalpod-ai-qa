@@ -1,4 +1,15 @@
 services:
+  drupalpod_ai_qa.hook_handler:
+    class: Drupal\drupalpod_ai_qa\AiQaHookHandler
+    arguments:
+      - '@drupalpod_ai_qa.provider_manager'
+      - '@messenger'
+      - '@current_route_match'
+      - '@router.admin_context'
+      - '@request_stack'
+      - '@current_user'
+      - '@string_translation'
+
   drupalpod_ai_qa.provider_manager:
     class: Drupal\drupalpod_ai_qa\AiQaProviderManager
     arguments:

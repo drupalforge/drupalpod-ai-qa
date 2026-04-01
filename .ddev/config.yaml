@@ -69,10 +69,6 @@ web_environment:
     - DP_TEST_MODULE_ISSUE_FORK=
     - DP_TEST_MODULE_ISSUE_BRANCH=
 
-    # ---------------------------------------------------------------------------
-    # Optional: local or cloud API key for LiteLLM / provider testing (empty by default)
-    # ---------------------------------------------------------------------------
-    - DP_AI_VIRTUAL_KEY=
     # Optional: preconfigure an AI provider for QA environments.
     # Supported values:
     #   * openai

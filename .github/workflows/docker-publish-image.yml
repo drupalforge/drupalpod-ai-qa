@@ -44,6 +44,7 @@ jobs:
           DP_VERSION: ${{ inputs.drupal_version || '' }}
           DP_IMAGE: drupalforge/drupalpod-ai-qa:${{ inputs.image_tag_suffix || 'latest' }}
           DP_STARTER_TEMPLATE: ${{ inputs.image_tag_suffix || 'cms' }}
+          DP_EXTRA_MODULES: 'ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text'
           DP_REBUILD: '1'
         ports:
           - 80:80

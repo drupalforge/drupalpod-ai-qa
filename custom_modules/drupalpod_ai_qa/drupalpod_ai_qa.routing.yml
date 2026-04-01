@@ -1,7 +1,7 @@
 drupalpod_ai_qa.api_key_form:
-  path: '/admin/config/ai/providers/drupalpod-qa-key'
+  path: '/admin/config/ai/drupalpod-ai-qa/key'
   defaults:
     _form: '\Drupal\drupalpod_ai_qa\Form\AiQaApiKeyForm'
-    _title: 'Set QA AI API key'
+    _title: 'QA AI API key'
   requirements:
     _permission: 'administer ai providers'

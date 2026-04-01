@@ -4,16 +4,20 @@ Provides temporary AI provider key setup for QA environments.
 
 ## Purpose
 
-This module allows QA testers to temporarily configure AI providers (OpenAI, Anthropic) with their own API keys for testing purposes. Keys expire automatically (configurable via `AiQaProviderManager::TTL`) and are stored using Easy Encryption.
+This module allows QA testers to temporarily configure an AI provider with their own API key for testing purposes. The key is stored in a single managed key entity (`drupalpod_ai_qa`) shared across all providers. It expires automatically after 4 hours and is stored using Easy Encryption.
+
+Providers with their own native provisioning flow (e.g. amazee.ai) are supported without key management — the module sets them as the default provider and steps aside.
 
 ## Features
 
-- **Temporary API Keys**: Keys expire automatically after a configurable duration (see AiQaProviderManager::TTL constant)
-- **Encrypted Storage**: Uses Easy Encryption for secure key storage
-- **Auto-Redirect**: Authenticated users with appropriate permissions are automatically prompted to enter a key
-- **Multiple Provider Support**: Currently supports OpenAI and Anthropic (Claude)
-- **Provider Aliases**: Accepts common aliases (e.g., 'claude' → 'anthropic')
-- **Automatic Cache Clearing**: Clears provider caches when keys change
+- **Single managed key**: One key entity (`drupalpod_ai_qa`) used regardless of provider
+- **Provider-agnostic prompt**: Prompts show the current default provider name, not a hardcoded provider
+- **Native key support**: Providers like amazee.ai that have their own key/provisioning flow bypass the key prompt entirely
+- **Temporary keys**: Keys expire automatically after 4 hours
+- **Encrypted storage**: Uses Easy Encryption for secure key storage
+- **Auto-redirect**: Authenticated users with appropriate permissions are automatically prompted to enter a key when needed
+- **Provider aliases**: Accepts common aliases (e.g., `'claude'` → `'anthropic'`, `'amazee'` → `'amazeeai'`)
+- **Automatic cache clearing**: Clears provider caches when keys change
 
 ## Installation
 
@@ -22,16 +26,11 @@ This module allows QA testers to temporarily configure AI providers (OpenAI, Ant
    drush en drupalpod_ai_qa
    ```
 
-2. Enable an AI provider module (e.g., `ai_provider_openai` or `ai_provider_anthropic`)
+2. Enable an AI provider module (e.g., `ai_provider_openai`, `ai_provider_anthropic`, or `ai_provider_amazeeio`)
 
-3. Ensure `easy_encryption` is enabled for encrypted key storage:
-   ```bash
-   drush en easy_encryption
-   ```
+3. Pre-configure the provider (see Configuration section)
 
-4. Pre-configure the provider via code or configuration (see Configuration section)
-
-5. Users with "administer ai providers" permission will be automatically prompted to enter a temporary API key
+4. Users with "administer ai providers" permission will be automatically prompted to enter a temporary API key (unless the provider uses a native key flow)
 
 ## Configuration
 
@@ -41,241 +40,74 @@ This module allows QA testers to temporarily configure AI providers (OpenAI, Ant
 /** @var \Drupal\drupalpod_ai_qa\AiQaProviderManager $providerManager */
 $providerManager = \Drupal::service('drupalpod_ai_qa.provider_manager');
 
-// Apply OpenAI as the QA provider
+// Apply a provider — sets it as default and configures the managed key
 $providerManager->applyProvider('openai');
-
-// Or use Anthropic (also accepts 'claude' as an alias)
-$providerManager->applyProvider('anthropic');
+$providerManager->applyProvider('anthropic'); // also accepts 'claude'
+$providerManager->applyProvider('amazeeai');  // also accepts 'amazee', 'amazeeio'
 ```
-
-### Via Configuration
-
-Edit `config/drupalpod_ai_qa.settings.yml`:
-
-```yaml
-selected_provider: 'openai'
-```
-
-## Security Considerations
-
-### Important Warnings
-
-- **QA Environments Only**: This module is designed for QA/testing environments, NOT production
-- **Temporary Storage**: API keys are stored temporarily and expire automatically (configurable TTL)
-- **Encrypted Storage Required**: Keys are stored using Easy Encryption
-- **Access Control**: Only users with "administer ai providers" permission can enter keys
-
-### Security Features
-
-- CSRF protection via Drupal Form API
-- Input validation (character set, minimum length)
-- Automatic key expiry and purging
-- Encrypted key storage via Easy Encryption
-- Logging of provider configuration errors
-
-## How It Works
-
-### Workflow
-
-1. **Provider Configuration**: An administrator pre-configures a provider (OpenAI, Anthropic)
-2. **Key Prompt**: Users with "administer ai providers" permission are redirected to enter an API key
-3. **Key Storage**: The key is stored in a managed Key entity with automatic expiry
-4. **Provider Setup**: The provider module is configured to use the managed key
-5. **Automatic Expiry**: After the TTL expires, the key is purged and users are prompted again
-
-### Components
-
-- **AiQaProviderManager** (Service): Core business logic for provider management
-- **AiQaApiKeyForm** (Form): Collects the temporary API key from users
-- **AiKeyPromptSubscriber** (Event Subscriber): Redirects users to the key form when needed
-- **KeyExpirySubscriber** (Event Subscriber): Purges expired keys on each request
-
-## API
-
-### Service: `drupalpod_ai_qa.provider_manager`
-
-```php
-// Get the service
-$providerManager = \Drupal::service('drupalpod_ai_qa.provider_manager');
-
-// Apply a provider
-$providerManager->applyProvider('openai');
-
-// Store a temporary key
-$providerManager->storeTemporaryKey('sk-...');
-
-// Check if a usable key exists
-$hasKey = $providerManager->hasUsableKey();
-
-// Get the selected provider ID
-$providerId = $providerManager->getSelectedProviderId(); // 'openai' or 'anthropic'
-
-// Get the provider label
-$label = $providerManager->getSelectedProviderLabel(); // 'OpenAI' or 'Anthropic'
-
-// Get key expiry timestamp
-$expiry = $providerManager->getKeyExpiry();
-
-// Reset provider selection
-$providerManager->resetProviderSelection();
-```
-
-## Testing
-
-### Running Tests
-
-```bash
-# Run all tests
-./vendor/bin/phpunit modules/custom/drupalpod_ai_qa
-
-# Run kernel tests
-./vendor/bin/phpunit modules/custom/drupalpod_ai_qa/tests/src/Kernel
-```
-
-### Test Coverage
-
-Current test coverage includes:
-- Provider application and key entity creation
-- Default model configuration
-- Key expiry and purging
-
-### Future Test Additions
-
-Consider adding tests for:
-- Provider alias normalization
-- Reset provider selection
-- Easy Encryption key storage behavior
-- Form validation
-- Event subscriber behavior
 
 ## Supported Providers
 
 ### OpenAI
-
 - **Module**: `ai_provider_openai`
-- **Aliases**: 'openai'
-- **Key Format**: `sk-...` (validated to be 20+ characters)
+- **Aliases**: `openai`
+- **Key management**: managed key (`drupalpod_ai_qa`), expires after TTL
 
 ### Anthropic
-
 - **Module**: `ai_provider_anthropic`
-- **Aliases**: 'anthropic', 'claude'
-- **Key Format**: alphanumeric with dashes/underscores (validated to be 20+ characters)
+- **Aliases**: `anthropic`, `claude`
+- **Key management**: managed key (`drupalpod_ai_qa`), expires after TTL
 
-## Architecture
+### amazee.ai
+- **Module**: `ai_provider_amazeeio`
+- **Aliases**: `amazeeai`, `amazee`, `amazeeio`
+- **Key management**: native — if the provider already has a key configured (e.g. from a recipe), the managed key flow is skipped entirely and the key never expires
 
-### Design Principles
+## Security Considerations
 
-- **Service-Oriented**: Core logic in a reusable service
-- **Dependency Injection**: All dependencies properly injected
-- **PHP 8.2+ Features**: Constructor property promotion, typed properties, readonly
-- **Modern Drupal**: Uses attributes, not annotations
-- **Event-Driven**: Uses event subscribers instead of hooks
-- **Configuration Management**: Full config schema support
+- **QA environments only**: Not designed for production use
+- **Temporary storage**: API keys expire automatically (configurable TTL)
+- **Encrypted storage**: Keys stored via Easy Encryption
+- **Access control**: Only users with "administer ai providers" permission can enter keys
+- CSRF protection via Drupal Form API
 
-### Key Design Decisions
+## How It Works
 
-1. **Key Module Integration**: Uses the Key module for secure, managed key storage
-2. **State for Expiry**: Uses State API for expiry timestamp (not exportable)
-3. **Static Caching**: Caches selected provider ID to reduce config reads
-4. **Encrypted Key Storage**: Stores managed QA keys with Easy Encryption
-5. **Cache Clearing**: Aggressive cache clearing to ensure fresh data after key changes
+1. **Provider configuration**: `applyProvider()` points the provider `api_key` config at the `drupalpod_ai_qa` key entity and configures `ai.settings` default providers
+2. **Key prompt**: Users are redirected to enter a key when a provider is configured to use the QA key and none is present
+3. **Key storage**: The key is stored in the single `drupalpod_ai_qa` key entity
+4. **Automatic expiry**: After the TTL expires, the key is purged and users are prompted again
 
 ## Extending
 
 ### Adding New Providers
 
-Edit `AiQaProviderManager::$providers` and `AiQaProviderManager::$aliases`:
+To add a provider, modify `AiQaProviderManager` directly: add an entry to the `$providers` array in the constructor using `buildProviderDefinition()`, and add any aliases to `$aliases`.
 
-```php
-private array $providers = [
-  'newprovider' => [
-    'label' => 'New Provider',
-    'module' => 'ai_provider_newprovider',
-    'config_name' => 'ai_provider_newprovider.settings',
-    'config_key' => 'api_key',
-    'key_id' => 'drupalpod_ai_qa_newprovider',
-    'key_label' => 'DrupalPod QA New Provider API key',
-  ],
-];
-
-private array $aliases = [
-  'newprovider' => 'newprovider',
-  'np' => 'newprovider', // Optional alias
-];
-```
+Providers that have their own provisioning flow (e.g. amazee.ai) require no special handling — the module automatically detects whether the provider's config already points at its own key and skips the key prompt in that case.
 
 ## Troubleshooting
 
 ### Keys Not Persisting
-
 - Verify `easy_encryption` is enabled
 - Verify the Key module is installed
 - Check permissions on the key storage location
 
 ### Redirect Loop
+- Verify the route `drupalpod_ai_qa.api_key_form` is in allowed routes
+- Check user has "administer ai providers" permission
 
-- Verify the route 'drupalpod_ai_qa.api_key_form' is in allowed routes
-- Check if the user has "administer ai providers" permission
-- Ensure the key expiry hasn't passed
+### amazee.ai Not Detected as Having a Key
+- Check `ai_provider_amazeeio.settings.api_key` has a non-empty value in config
+- This is set by the `drupal_cms_ai` recipe with `provider=amazeeio`
 
 ### Provider Not Working
-
 - Verify the provider module is enabled
 - Check that `applyProvider()` returned TRUE
-- Review watchdog logs for errors
-- Ensure the key value was actually stored
-
-## Logging
-
-The module logs errors to the 'drupalpod_ai_qa' channel:
-
-```bash
-# View logs
-drush watchdog:show --type=drupalpod_ai_qa
-```
-
-Common log messages:
-- Invalid provider errors
-- Provider module not installed errors
+- Review watchdog logs: `drush watchdog:show --type=drupalpod_ai_qa`
 
 ## Related Modules
 
-- [AI](https://drupal.org/project/ai) - Core AI framework
-- [Key](https://drupal.org/project/key) - Secure key storage
-- [Easy Encryption](https://drupal.org/project/easy_encryption) - Key encryption
-
-## Development
-
-### Code Quality
-
-The module follows Drupal coding standards:
-
-```bash
-# Run PHPCS
-./vendor/bin/phpcs --standard=Drupal,DrupalPractice modules/custom/drupalpod_ai_qa
-
-# Run PHPStan
-./vendor/bin/phpstan analyze modules/custom/drupalpod_ai_qa
-```
-
-### Contributing
-
-When contributing:
-1. Follow PHP 8.2+ features and best practices
-2. Add comprehensive PHPDoc comments
-3. Use dependency injection (no static service calls)
-4. Include tests for new functionality
-5. Update this README for significant changes
-
-## License
-
-This module is licensed under the GPL-2.0-or-later license.
-
-## Maintainers
-
-- Current development is part of DrupalPod AI QA testing infrastructure
-
-## Version History
-
-See the CHANGELOG.md file for version history and release notes.
+- [AI](https://drupal.org/project/ai) — Core AI framework
+- [Key](https://drupal.org/project/key) — Secure key storage
+- [Easy Encryption](https://drupal.org/project/easy_encryption) — Key encryption

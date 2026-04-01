@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Drupal\drupalpod_ai_qa\EventSubscriber;
 
 use Drupal\drupalpod_ai_qa\AiQaProviderManager;
+use Drupal\Core\Url;
+use Drupal\key\Entity\Key;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 
@@ -37,6 +40,23 @@ final class KeyExpirySubscriber implements EventSubscriberInterface {
     }
 
     $this->providerManager->purgeExpiredKeyOnRequest();
+
+    $request = $event->getRequest();
+    if ($request->attributes->get('_route') !== 'entity.key.edit_form') {
+      return;
+    }
+
+    $key = $request->attributes->get('key');
+    if (
+      $key !== AiQaProviderManager::KEY_ID &&
+      (!$key instanceof Key || $key->id() !== AiQaProviderManager::KEY_ID)
+    ) {
+      return;
+    }
+
+    $event->setResponse(new RedirectResponse(
+      Url::fromRoute('drupalpod_ai_qa.api_key_form')->toString(),
+    ));
   }
 
   /**

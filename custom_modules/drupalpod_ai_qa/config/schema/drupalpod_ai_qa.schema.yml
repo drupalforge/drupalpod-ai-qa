@@ -1,7 +1,0 @@
-drupalpod_ai_qa.settings:
-  type: config_object
-  label: 'DrupalPod AI QA settings'
-  mapping:
-    selected_provider:
-      type: string
-      label: 'Selected QA AI provider'

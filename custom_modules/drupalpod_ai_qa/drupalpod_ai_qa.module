@@ -2,109 +2,44 @@
 
 /**
  * @file
- * Module file for DrupalPod AI QA.
+ * Hooks for DrupalPod AI QA.
  */
 
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Url;
 use Drupal\user\UserInterface;
 
 /**
  * Implements hook_cron().
  */
 function drupalpod_ai_qa_cron(): void {
-  \Drupal::service('drupalpod_ai_qa.provider_manager')->purgeExpiredKey();
+  \Drupal::service('drupalpod_ai_qa.hook_handler')->handleCron();
 }
 
 /**
  * Implements hook_user_login().
  */
 function drupalpod_ai_qa_user_login(UserInterface $account): void {
-  if (!$account->hasPermission('administer ai providers')) {
-    return;
-  }
-
-  if (!drupalpod_ai_qa_should_prompt_for_key()) {
-    return;
-  }
-
-  drupalpod_ai_qa_add_missing_key_warning();
+  \Drupal::service('drupalpod_ai_qa.hook_handler')->handleUserLogin($account);
 }
 
 /**
  * Implements hook_form_FORM_ID_alter() for user_login_form.
  */
 function drupalpod_ai_qa_form_user_login_form_alter(array &$form, FormStateInterface $form_state): void {
-  $form['#submit'][] = 'drupalpod_ai_qa_user_login_form_submit';
+  \Drupal::service('drupalpod_ai_qa.hook_handler')->alterUserLoginForm($form);
 }
 
 /**
  * Submit handler for the user login form.
- *
- * Redirects to the API key form after login when a provider is configured
- * but no key is present.
  */
 function drupalpod_ai_qa_user_login_form_submit(array $form, FormStateInterface &$form_state): void {
-  if (!drupalpod_ai_qa_should_prompt_for_key()) {
-    return;
-  }
-
-  // Remove any destination parameter so RedirectResponseSubscriber does not
-  // override our redirect with wherever the user was trying to go.
-  \Drupal::request()->query->remove('destination');
-  $form_state->setRedirectUrl(Url::fromRoute('drupalpod_ai_qa.api_key_form'));
+  \Drupal::service('drupalpod_ai_qa.hook_handler')->handleUserLoginFormSubmit($form_state);
 }
 
 /**
  * Implements hook_page_top().
  */
 function drupalpod_ai_qa_page_top(): void {
-  $current_user = \Drupal::currentUser();
-  if (!$current_user->isAuthenticated() || !$current_user->hasPermission('administer ai providers')) {
-    return;
-  }
-
-  $route_match = \Drupal::routeMatch();
-  $route_name = $route_match->getRouteName();
-
-  if ($route_name === NULL) {
-    return;
-  }
-
-  $manager = \Drupal::service('drupalpod_ai_qa.provider_manager');
-  if (in_array($route_name, $manager->getAllowedRoutes(), TRUE)) {
-    return;
-  }
-
-  $route_object = $route_match->getRouteObject();
-  if ($route_object === NULL || !\Drupal::service('router.admin_context')->isAdminRoute($route_object)) {
-    return;
-  }
-
-  if (!drupalpod_ai_qa_should_prompt_for_key()) {
-    return;
-  }
-
-  drupalpod_ai_qa_add_missing_key_warning();
+  \Drupal::service('drupalpod_ai_qa.hook_handler')->handlePageTop();
 }
 
-/**
- * Returns whether the current request should prompt for a QA key.
- *
- * @return bool
- *   TRUE when a provider is selected and no usable key exists.
- */
-function drupalpod_ai_qa_should_prompt_for_key(): bool {
-  $manager = \Drupal::service('drupalpod_ai_qa.provider_manager');
-  return $manager->getSelectedProviderId() !== NULL && !$manager->hasUsableKey();
-}
-
-/**
- * Adds the standard missing-key warning message.
- */
-function drupalpod_ai_qa_add_missing_key_warning(): void {
-  \Drupal::messenger()->addWarning(t(
-    'No DrupalPod AI QA API key is set. <a href=":url">Enter your API key</a> to use AI features.',
-    [':url' => Url::fromRoute('drupalpod_ai_qa.api_key_form')->toString()],
-  ));
-}
