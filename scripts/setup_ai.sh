@@ -18,10 +18,11 @@ if [ -n "${DP_AI_PROVIDER:-}" ]; then
     # module handle provider defaults plus API key prompting.
     $DRUSH -n php:eval "\Drupal::service('drupalpod_ai_qa.provider_manager')->applyProvider('${qa_provider}');"
   else
-    # amazee.ai already has a native onboarding/provisioning flow, so keep
-    # using the recipe path rather than the DrupalPod QA key prompt flow.
+    # amazee.ai has a native provisioning flow via the recipe. Run that first,
+    # then apply the provider so the QA module tracks it as selected and
+    # default providers are set in ai.settings.
     $DRUSH -q recipe ../recipes/drupal_cms_ai --input=drupal_cms_ai.provider=amazeeio
-    $DRUSH -n php:eval "\Drupal::service('drupalpod_ai_qa.provider_manager')->resetProviderSelection();"
+    $DRUSH -n php:eval "\Drupal::service('drupalpod_ai_qa.provider_manager')->applyProvider('amazeeai');"
   fi
 
   return 0

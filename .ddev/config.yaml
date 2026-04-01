@@ -31,63 +31,62 @@ web_environment:
     - DB_DRIVER=mysql
     - DP_EXTRA_MODULES=ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text
 
-    - # ============================================================================
-    - # DevPanel / Drupal defaults - customisable
-    - # ============================================================================
+    # ============================================================================
+    # DevPanel / Drupal defaults - customisable
+    # ============================================================================
 
-    - # ---------------------------------------------------------------------------
-    - # Direct mappings to your DDEV environment variables (keep names identical)
-    - # ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
+    # Direct mappings to your DDEV environment variables (keep names identical)
+    # ---------------------------------------------------------------------------
     - DP_STARTER_TEMPLATE=cms             # Starter template (core or cms)
     - DP_VERSION=                         # Drupal version [CMS: 1.2.0, Core: 11.x, Empty: Latest stable]
 
-    - # ---------------------------------------------------------------------------
-    - # AI module / PR testing defaults
-    - # - DP_AI_MODULE_VERSION behavior:
-    - #   * Empty = Auto-detect from test module (recommended)
-    - #   * Set explicitly = Validate compatibility (fails if test module incompatible)
-    - # - DP_AI_ISSUE_FORK / DP_AI_ISSUE_BRANCH: test a PR for the base module
-    - # ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
+    # AI module / PR testing defaults
+    # - DP_AI_MODULE_VERSION behavior:
+    #   * Empty = Auto-detect from test module (recommended)
+    #   * Set explicitly = Validate compatibility (fails if test module incompatible)
+    # - DP_AI_ISSUE_FORK / DP_AI_ISSUE_BRANCH: test a PR for the base module
+    # ---------------------------------------------------------------------------
     - DP_AI_MODULE=ai                # Base AI module name
     - DP_AI_MODULE_VERSION=          # Empty = auto-detect (or set explicitly to validate)
     - DP_AI_ISSUE_FORK=
     - DP_AI_ISSUE_BRANCH=
 
-    - # Optional: force Composer to resolve AI deps even if CMS/Core constraints block it.
-    - # This enables lenient resolution when testing explicit AI versions.
+    # Optional: force Composer to resolve AI deps even if CMS/Core constraints block it.
+    # This enables lenient resolution when testing explicit AI versions.
     - DP_FORCE_DEPENDENCIES=1       # 1 = ignore CMS/Core constraints for AI deps
 
-    - # ---------------------------------------------------------------------------
-    - # Test any AI sub-module (ai_search, ai_agents, providers, etc.)
-    - # - Setting DP_TEST_MODULE will auto-detect required base AI version if not defined
-    - # - The script clones test module first, reads its AI requirement, then clones AI
-    - # - Use DP_TEST_MODULE_VERSION to pin a release-style version (optional)
-    - # - Use DP_TEST_MODULE_ISSUE_FORK / DP_TEST_MODULE_ISSUE_BRANCH to test PRs
-    - # ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
+    # Test any AI sub-module (ai_search, ai_agents, providers, etc.)
+    # - Setting DP_TEST_MODULE will auto-detect required base AI version if not defined
+    # - The script clones test module first, reads its AI requirement, then clones AI
+    # - Use DP_TEST_MODULE_VERSION to pin a release-style version (optional)
+    # - Use DP_TEST_MODULE_ISSUE_FORK / DP_TEST_MODULE_ISSUE_BRANCH to test PRs
+    # ---------------------------------------------------------------------------
     - DP_TEST_MODULE=                     # Empty = use auto-detected AI version
     - DP_TEST_MODULE_VERSION=             # Empty = use dev branch
     - DP_TEST_MODULE_ISSUE_FORK=
     - DP_TEST_MODULE_ISSUE_BRANCH=
 
-    - # ---------------------------------------------------------------------------
-    - # Optional: local or cloud API key for LiteLLM / provider testing (empty by default)
-    - # ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
+    # Optional: local or cloud API key for LiteLLM / provider testing (empty by default)
+    # ---------------------------------------------------------------------------
     - DP_AI_VIRTUAL_KEY=
-    - # Optional: preconfigure an AI provider for QA environments.
-    - # Supported values:
-    - #   * openai
-    - #   * anthropic (preferred)
-    - #   * claude (alias for anthropic)
-    - #   * amazee / amazeeai / amazeeio
-    - # Behavior:
-    - #   * openai + anthropic use the DrupalPod AI QA key-prompt flow
-    - #   * amazee variants use the native amazee recipe/provisioning flow
+    # Optional: preconfigure an AI provider for QA environments.
+    # Supported values:
+    #   * openai
+    #   * anthropic / claude
+    #   * amazee / amazeeai / amazeeio
+    # Behavior:
+    #   * openai + anthropic use the DrupalPod AI QA key-prompt flow
+    #   * amazee variants use the native amazee recipe/provisioning flow
     - DP_AI_PROVIDER=amazee
 
-    - # ---------------------------------------------------------------------------
-    - # Set to 1 if you wish to rebuild the whole project from scratch. This is
-    - # mainly beneficial for only ddev so you can skip rebuilding when not needed.
-    - # ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
+    # Set to 1 if you wish to rebuild the whole project from scratch. This is
+    # mainly beneficial for only ddev so you can skip rebuilding when not needed.
+    # ---------------------------------------------------------------------------
     - DP_REBUILD=1
 corepack_enable: false
 ddev_version_constraint: '>=1.24.0'
