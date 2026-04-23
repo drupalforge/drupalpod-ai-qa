@@ -1,0 +1,49 @@
+:root {
+  --dp-drupal-blue: #0678be;
+  --dp-drupal-blue-dark: #0b5fa5;
+  --dp-drupal-blue-soft: #eaf3f9;
+  --dp-drupal-ink: #12285f;
+}
+
+.md-header,
+.md-tabs {
+  background-color: var(--dp-drupal-blue);
+}
+
+.md-tabs__link--active,
+.md-tabs__link:is(:focus, :hover) {
+  color: #fff;
+}
+
+.md-typeset a,
+.md-nav__link:is(:focus, :hover),
+.md-nav__link--active,
+.md-typeset .md-button--primary {
+  color: var(--dp-drupal-blue);
+}
+
+.md-typeset a:hover {
+  color: var(--dp-drupal-blue-dark);
+}
+
+.md-typeset .md-button--primary,
+.md-typeset .md-button:focus,
+.md-typeset .md-button:hover {
+  border-color: var(--dp-drupal-blue);
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-color: color-mix(in sRGB, var(--dp-drupal-blue) 25%, white);
+}
+
+.md-typeset .admonition-title,
+.md-typeset summary {
+  background-color: var(--dp-drupal-blue-soft);
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  color: var(--dp-drupal-ink);
+}

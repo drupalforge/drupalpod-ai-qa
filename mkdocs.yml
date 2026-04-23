@@ -1,0 +1,69 @@
+site_name: DrupalPod AI QA
+site_description: User and technical documentation for QA environments in the Drupal AI ecosystem.
+site_url: https://project.pages.drupalcode.org/drupalpod_ai_qa/
+repo_url: https://git.drupalcode.org/project/drupalpod_ai_qa
+repo_name: drupal/drupalpod_ai_qa
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: en
+  logo: resources/branding/logo-circle.png
+  favicon: resources/branding/logo-circle.png
+  palette:
+    - scheme: default
+      primary: blue
+      accent: amber
+  font:
+    text: IBM Plex Sans
+    code: IBM Plex Mono
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search
+
+extra_css:
+  - resources/stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - How to Use:
+    - Common Use Cases: how-to-use/common-use-cases.md
+    - Step-by-Step Guide: how-to-use/step-by-step-guide.md
+    - Choosing an AI Provider: how-to-use/provider-selection.md
+    - VS Code in Browser: how-to-use/vscode-in-browser.md
+    - Local DDEV Guide: how-to-use/local-ddev-guide.md
+    - Configuration Reference: how-to-use/configuration-reference.md
+    - Troubleshooting: how-to-use/troubleshooting.md
+  - How It Works:
+      - Overview: how-it-works/index.md
+      - Build Flow: how-it-works/build-flow.md
+      - Custom Modules:
+          - Overview: how-it-works/custom-modules/index.md
+          - drupalpod_ai_qa: how-it-works/custom-modules/drupalpod-ai-qa.md
+          - drupalpod_build_info: how-it-works/custom-modules/drupalpod-build-info.md
+      - Resolution Modes: how-it-works/resolution-modes.md
+  - Developer Documentation:
+    - Developer Guide: developer-guide.md
+    - Browser-Based VS Code Workflow: developer-vscode-workflow.md
+    - Development: development.md
+    - Testing: testing.md

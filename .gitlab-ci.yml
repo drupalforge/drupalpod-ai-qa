@@ -16,6 +16,7 @@ variables:
   SKIP_PHPCS: 1
   SKIP_PHPSTAN: 1
   SKIP_PHPUNIT: 1
+  SKIP_PAGES: 1
 
 custom-module-phpunit:
   stage: test
@@ -47,6 +48,37 @@ bats:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
+
+mkdocs:
+  stage: test
+  image: python:3.12-alpine
+  rules:
+    - changes:
+        - mkdocs.yml
+        - docs/**/*
+        - docs/*
+        - README.md
+      when: on_success
+    - when: never
+  script:
+    - pip install mkdocs mkdocs-material pymdown-extensions
+    - mkdocs build --strict
+
+pages:
+  stage: build
+  image: python:3.11
+  before_script:
+    - python -m pip install --upgrade pip
+    - python -m pip install mkdocs mkdocs-material pymdown-extensions
+  script:
+    - python -m mkdocs build --strict --site-dir public
+    - echo "The documentation will be published at $CI_PAGES_URL"
+  artifacts:
+    paths:
+      - public
+    expire_in: 7 days
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 template-version-smoke:
   stage: test
