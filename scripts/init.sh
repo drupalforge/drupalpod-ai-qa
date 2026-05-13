@@ -133,8 +133,8 @@ time source "$SCRIPT_DIR/clone_modules.sh"
 
 # Install VSCode extensions.
 if [ -n "${DP_VSCODE_EXTENSIONS:-}" ]; then
-  IFS=','
-  for value in $DP_VSCODE_EXTENSIONS; do
+  IFS=',' read -ra _vscode_extensions <<< "$DP_VSCODE_EXTENSIONS"
+  for value in "${_vscode_extensions[@]}"; do
     time code-server --install-extension "$value"
   done
 fi
