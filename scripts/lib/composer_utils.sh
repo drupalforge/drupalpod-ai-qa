@@ -22,6 +22,46 @@ cleanup_composer_backup() {
     rm -f composer.json.bak composer.lock.bak
 }
 
+# Run a command without local path repositories in the root Composer config,
+# then restore the original repositories.
+run_without_path_repositories() {
+    local original_repositories
+    local has_path_repositories
+    local temp_file
+    local command_status
+
+    has_path_repositories=$(jq -r '(.repositories // []) | if type == "array" then any(.[]; .type == "path") else false end' composer.json) || return 1
+    if [ "$has_path_repositories" != "true" ]; then
+        "$@"
+        return
+    fi
+
+    original_repositories=$(jq -c '.repositories' composer.json)
+    temp_file=$(mktemp .composer.json.XXXXXX)
+    if ! jq '.repositories |= map(select(.type != "path"))' composer.json > "$temp_file"; then
+        rm -f "$temp_file"
+        return 1
+    fi
+    chmod --reference=composer.json "$temp_file"
+    mv "$temp_file" composer.json
+
+    if "$@"; then
+        command_status=0
+    else
+        command_status=$?
+    fi
+
+    temp_file=$(mktemp .composer.json.XXXXXX)
+    if ! jq --argjson repositories "$original_repositories" '.repositories = $repositories' composer.json > "$temp_file"; then
+        rm -f "$temp_file"
+        return 1
+    fi
+    chmod --reference=composer.json "$temp_file"
+    mv "$temp_file" composer.json
+
+    return "$command_status"
+}
+
 # Try a composer operation with automatic backup/restore.
 # Usage: try_composer_operation "operation description" command args...
 # Returns 0 on success, 1 on failure.
