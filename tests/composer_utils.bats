@@ -22,39 +22,54 @@ setup() {
 JSON
 }
 
-@test "suspends path repositories for the command and restores them" {
+@test "adds a path repository to the front of an existing repository array" {
     chmod 644 composer.json
 
-    check_without_path_repositories() {
-        jq -e 'all(.repositories[]; .type != "path")' composer.json >/dev/null
-    }
+    add_path_repository "/project/repos/new-module"
 
-    run_without_path_repositories check_without_path_repositories
-
-    [ "$(jq '[.repositories[] | select(.type == "path")] | length' composer.json)" -eq 1 ]
+    [ "$(jq '.repositories | type' composer.json)" = '"array"' ]
+    [ "$(jq -r '.repositories[0].type' composer.json)" = "path" ]
+    [ "$(jq -r '.repositories[0].url' composer.json)" = "/project/repos/new-module" ]
+    [ "$(jq -r '.repositories[0].options.symlink' composer.json)" = "true" ]
+    [ "$(jq -r '.repositories[1].name' composer.json)" = "local-module" ]
+    [ "$(jq -r '.repositories[2].name' composer.json)" = "drupal" ]
     [ "$(stat -c '%a' composer.json)" = "644" ]
 }
 
-@test "restores path repositories when the command fails" {
-    fail_after_checking_repositories() {
-        jq -e 'all(.repositories[]; .type != "path")' composer.json >/dev/null
-        return 17
+@test "normalizes Composer 2.7 keyed repositories to a valid list" {
+    cat > composer.json <<'JSON'
+{
+  "repositories": {
+    "drupal": {
+      "name": "drupal",
+      "type": "composer",
+      "url": "https://packages.drupal.org/8"
+    },
+    "ai_search-git": {
+      "name": "ai_search-git",
+      "type": "path",
+      "url": "/project/repos/ai_search",
+      "options": {"symlink": true}
     }
+  }
+}
+JSON
 
-    run run_without_path_repositories fail_after_checking_repositories
+    add_path_repository "/project/repos/new-module"
 
-    [ "$status" -eq 17 ]
-    [ "$(jq '[.repositories[] | select(.type == "path")] | length' composer.json)" -eq 1 ]
+    [ "$(jq '.repositories | type' composer.json)" = '"array"' ]
+    [ "$(jq '.repositories | length' composer.json)" -eq 3 ]
+    [ "$(jq -r '.repositories[0].url' composer.json)" = "/project/repos/new-module" ]
+    [ "$(jq -e 'all(.repositories[1:][]; has("name") | not)' composer.json)" = "true" ]
+    [ "$(jq -r '.repositories[1].url' composer.json)" = "https://packages.drupal.org/8" ]
+    [ "$(jq -r '.repositories[2].url' composer.json)" = "/project/repos/ai_search" ]
 }
 
-@test "runs commands directly when there are no path repositories" {
-    jq 'del(.repositories[0])' composer.json > no-path-repositories.json
-    mv no-path-repositories.json composer.json
-    check_command() {
-        jq -e 'all(.repositories[]; .type != "path")' composer.json >/dev/null
-    }
+@test "adds a path repository when repositories are absent" {
+    echo '{}' > composer.json
 
-    run_without_path_repositories check_command
+    add_path_repository "/project/repos/new-module"
 
     [ "$(jq '.repositories | length' composer.json)" -eq 1 ]
+    [ "$(jq -r '.repositories[0].url' composer.json)" = "/project/repos/new-module" ]
 }

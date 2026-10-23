@@ -390,8 +390,7 @@ fi
 if [ -n "${DP_TEST_MODULE_ISSUE_FORK:-}" ] && [ -n "${DP_TEST_MODULE_ISSUE_BRANCH:-}" ]; then
     repo_path="$PROJECT_ROOT/repos/${DP_TEST_MODULE}"
     if [ -d "$repo_path" ]; then
-        composer config --no-plugins repositories."${DP_TEST_MODULE}"-git \
-            "{\"type\": \"path\", \"url\": \"$repo_path\", \"options\": {\"symlink\": true}}"
+        add_path_repository "$repo_path"
         log_info "Added path repository for issue fork: ${DP_TEST_MODULE}"
     else
         log_error "Issue fork repo not found at $repo_path — cannot proceed"
@@ -402,8 +401,7 @@ fi
 if [ -n "${DP_AI_ISSUE_FORK:-}" ] && [ -n "${DP_AI_ISSUE_BRANCH:-}" ]; then
     repo_path="$PROJECT_ROOT/repos/${DP_AI_MODULE}"
     if [ -d "$repo_path" ]; then
-        composer config --no-plugins repositories."${DP_AI_MODULE}"-git \
-            "{\"type\": \"path\", \"url\": \"$repo_path\", \"options\": {\"symlink\": true}}"
+        add_path_repository "$repo_path"
         log_info "Added path repository for AI issue fork: ${DP_AI_MODULE}"
     else
         log_error "AI issue fork repo not found at $repo_path — cannot proceed"

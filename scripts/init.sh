@@ -282,18 +282,10 @@ if [ "${DP_REBUILD:-0}" = "1" ] || ! $DRUSH status --field=bootstrap | grep -q "
   # Install Drupal.
   if [ -z "$PROFILE" ]; then
     echo "Installing Drupal CMS (auto-detect profile)"
-    if [ "$STARTER_TEMPLATE" = "cms" ]; then
-      time run_without_path_repositories "$DRUSH" -n si --db-url="$DB_URL" --account-name=admin --account-pass=admin
-    else
-      time $DRUSH -n si --db-url="$DB_URL" --account-name=admin --account-pass=admin
-    fi
+    time $DRUSH -n si --db-url="$DB_URL" --account-name=admin --account-pass=admin
   else
     echo "Installing Drupal with profile: $PROFILE"
-    if [ "$STARTER_TEMPLATE" = "cms" ]; then
-      time run_without_path_repositories "$DRUSH" -n si "$PROFILE" --db-url="$DB_URL" --account-name=admin --account-pass=admin
-    else
-      time $DRUSH -n si "$PROFILE" --db-url="$DB_URL" --account-name=admin --account-pass=admin
-    fi
+    time $DRUSH -n si "$PROFILE" --db-url="$DB_URL" --account-name=admin --account-pass=admin
   fi
 
   # Enable AI modules.
