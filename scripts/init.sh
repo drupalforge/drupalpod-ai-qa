@@ -66,10 +66,6 @@ run_preflight_checks() {
 
 run_preflight_checks
 
-# Always use the latest stable Composer 2 release, even if the base image ships
-# an older minor version.
-composer self-update --2 --no-interaction
-
 # High-level flow:
 # 1) Pre-clone issue forks so resolver can see local branch code.
 # 2) Resolve a compatible module/CMS plan into logs/ai-manifest.json.
