@@ -22,32 +22,16 @@ cleanup_composer_backup() {
     rm -f composer.json.bak composer.lock.bak
 }
 
-# Add a path repository without Composer's config command, which can turn an
-# existing repository list into an invalid keyed object with Composer 2.7.
+# Add a path repository using Composer's config command.
 add_path_repository() {
     local repo_path=$1
-    local temp_file
+    local repo_name
+    local repository_json
 
-    temp_file=$(mktemp .composer.json.XXXXXX)
-    if ! jq --arg repo_path "$repo_path" '
-        (.repositories // []) as $repositories
-        | .repositories = (
-            [{type: "path", url: $repo_path, options: {symlink: true}}]
-            + ($repositories
-                | if type == "array" then .
-                  elif type == "object" then [
-                    to_entries[]
-                    | if (.value | type) == "object" then .value | del(.name) else .value end
-                  ]
-                  else error("Composer repositories must be an array or object")
-                  end)
-        )
-    ' composer.json > "$temp_file"; then
-        rm -f "$temp_file"
-        return 1
-    fi
-    chmod --reference=composer.json "$temp_file"
-    mv "$temp_file" composer.json
+    repo_name="$(basename "$repo_path")-git"
+    repository_json=$(jq -cn --arg repo_path "$repo_path" \
+        '{type: "path", url: $repo_path, options: {symlink: true}}')
+    composer config --no-plugins "repositories.${repo_name}" "$repository_json"
 }
 
 # Try a composer operation with automatic backup/restore.
