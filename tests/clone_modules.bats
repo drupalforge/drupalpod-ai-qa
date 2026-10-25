@@ -54,3 +54,13 @@ teardown() {
     output=$(load_manifest_skipped_modules "$PROJECT_ROOT/logs/ai-manifest.json")
     [[ "$output" =~ "drupal/ai_agents" ]]
 }
+
+@test "provider checkout uses the PHP 8.2 pin or the Composer-resolved release" {
+    eval "$(sed -n '/^override_git_version()/,/^}/p' "$PROJECT_ROOT/scripts/clone_modules.sh")"
+
+    result=$(override_git_version "ai_provider_amazeeio" "1.4.6" "1.2.7" "DP_TEST_MODULE_VERSION")
+    [ "$result" = "1.2.7" ]
+
+    result=$(override_git_version "ai_provider_amazeeio" "1.4.6" "" "DP_TEST_MODULE_VERSION")
+    [ "$result" = "1.4.6" ]
+}

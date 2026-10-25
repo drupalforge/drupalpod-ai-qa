@@ -59,3 +59,20 @@ teardown() {
     [ "$project_package" = "drupal/cms" ]
     [ "$project_version" = "2.0.1" ]
 }
+
+@test "image provider is required with a PHP 8.2 pin and automatic selection otherwise" {
+    source "$PROJECT_ROOT/scripts/lib/common.sh"
+    eval "$(sed -n '/^add_required_module()/,/^}/p' "$PROJECT_ROOT/scripts/resolve_modules.sh")"
+    eval "$(sed -n '/^contains_package()/,/^}/p' "$PROJECT_ROOT/scripts/resolve_modules.sh")"
+    DP_TEST_MODULE=ai_provider_amazeeio
+
+    for version in "1.2.7" ""; do
+        REQUIRED_PACKAGES=()
+        REQUIRED_CONSTRAINTS=()
+        DP_TEST_MODULE_VERSION="$version"
+        eval "$(sed -n '/^if \[ -n "${DP_TEST_MODULE:-}" \]; then/,/^fi/p' "$PROJECT_ROOT/scripts/resolve_modules.sh")"
+
+        [ "${REQUIRED_PACKAGES[0]}" = "drupal/ai_provider_amazeeio" ]
+        [ "${REQUIRED_CONSTRAINTS[0]}" = "${version:-*}" ]
+    done
+}
