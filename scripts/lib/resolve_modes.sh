@@ -159,8 +159,8 @@ run_mode_four_force_attempt() {
     plugin_path="$PROJECT_ROOT/src/ai-lenient-plugin"
     if [ -d "$plugin_path" ]; then
         composer config --no-plugins allow-plugins.drupalpod/ai-lenient-plugin true
-        composer config --no-plugins "repositories.$(basename "$plugin_path")-git" \
-            "$(jq -cn --arg repo_path "$plugin_path" '{type: "path", url: $repo_path, options: {symlink: true}}')"
+        composer config --no-plugins repositories.ai-lenient-plugin \
+            "{\"type\": \"path\", \"url\": \"$plugin_path\", \"options\": {\"symlink\": true}}"
         composer require --prefer-dist -n --no-update "drupalpod/ai-lenient-plugin:*@dev"
     fi
 

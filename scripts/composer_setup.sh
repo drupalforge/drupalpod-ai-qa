@@ -129,8 +129,8 @@ composer config scripts.post-drupal-scaffold-cmd \
 if [ "${DP_FORCE_DEPENDENCIES}" = "1" ] && [ -n "${DP_LENIENT_PACKAGES:-}" ]; then
     plugin_path="$PROJECT_ROOT/src/ai-lenient-plugin"
     if [ -d "$plugin_path" ]; then
-        composer config --no-plugins "repositories.$(basename "$plugin_path")-git" \
-            "$(jq -cn --arg repo_path "$plugin_path" '{type: "path", url: $repo_path, options: {symlink: true}}')"
+        composer config --no-plugins repositories.ai-lenient-plugin \
+            "{\"type\": \"path\", \"url\": \"$plugin_path\", \"options\": {\"symlink\": true}}"
         composer require --prefer-dist -n --no-progress "drupalpod/ai-lenient-plugin:*@dev"
 
         # Ensure lenient plugins are installed/active before the main solve.
@@ -168,8 +168,8 @@ if [ -n "${COMPATIBLE_MODULES:-}" ]; then
         repo_path="$PROJECT_ROOT/repos/$module"
         if [ -d "$repo_path" ]; then
             echo "  - Adding path repository for: $module"
-            composer config --no-plugins "repositories.${module}-git" \
-                "$(jq -cn --arg repo_path "$repo_path" '{type: "path", url: $repo_path, options: {symlink: true}}')"
+            composer config --no-plugins repositories."$module"-git \
+                "{\"type\": \"path\", \"url\": \"$repo_path\", \"options\": {\"symlink\": true}}"
 
             require_args+=("drupal/$module:*@dev")
         fi
