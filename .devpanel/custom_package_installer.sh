@@ -10,7 +10,7 @@
 # ----------------------------------------------------------------------
 
 # Always use the latest stable Composer 2 release in DevPanel.
-composer self-update --2 --no-interaction || exit 1
+sudo composer self-update --2 --no-interaction || exit 1
 
 if [ -n "$DEBUG_SCRIPT" ]; then
     set -x
