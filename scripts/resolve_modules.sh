@@ -73,6 +73,27 @@ add_optional_module() {
     OPTIONAL_CONSTRAINTS+=("$constraint")
 }
 
+# Extra modules may include a Composer constraint after the module name.
+collect_optional_modules() {
+    local entry module constraint
+    local modules=()
+    IFS=',' read -ra modules <<< "${DP_EXTRA_MODULES:-}"
+    for entry in "${modules[@]}"; do
+        entry=$(echo "$entry" | xargs)
+        [ -n "$entry" ] || continue
+        module="${entry%%:*}"
+        constraint="*"
+        if [[ "$entry" == *:* ]]; then
+            constraint="${entry#*:}"
+        fi
+        validate_module_name "$module" || return 1
+        if [ "$module" = "${DP_AI_MODULE:-ai}" ] || [ "$module" = "${DP_TEST_MODULE:-}" ]; then
+            continue
+        fi
+        add_optional_module "drupal/$module" "${constraint:-*}"
+    done
+}
+
 # Emit a manifest file with only requested packages and their
 # resolved versions. This plan is later consumed by
 # clone_modules.sh. It is written to $MANIFEST_FILE.
@@ -299,17 +320,7 @@ fi
 # Collect optional modules from DP_EXTRA_MODULES. These are "try if possible":
 # we attempt to add them after the base AI version is resolved and skip any
 # that conflict, recording them in the final manifest.
-if [ -n "${DP_EXTRA_MODULES:-}" ]; then
-    IFS=',' read -ra MODULES <<< "$DP_EXTRA_MODULES"
-    for module in "${MODULES[@]}"; do
-        module=$(echo "$module" | xargs)
-        [ -n "$module" ] || continue
-        if [ "$module" = "${DP_AI_MODULE:-ai}" ] || [ "$module" = "${DP_TEST_MODULE:-}" ]; then
-            continue
-        fi
-        add_optional_module "drupal/$module" "*"
-    done
-fi
+collect_optional_modules
 
 # Build a temporary project so Composer can resolve real versions.
 TMP_DIR=$(mktemp -d)
