@@ -44,7 +44,8 @@ jobs:
           DP_VERSION: ${{ inputs.drupal_version || '' }}
           DP_IMAGE: drupalforge/drupalpod-ai-qa:${{ inputs.image_tag_suffix || 'latest' }}
           DP_STARTER_TEMPLATE: ${{ inputs.image_tag_suffix || 'cms' }}
-          DP_EXTRA_MODULES: 'ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text'
+          # 1.2.7 is the last release compatible with PHP 8.2.
+          DP_EXTRA_MODULES: ${{ endsWith(inputs.webserver_image, ':8.2-base-ai') && 'ai_search,ai_agents,ai_provider_amazeeio:1.2.7,ai_image_alt_text' || 'ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text' }}
           DP_REBUILD: '1'
         ports:
           - 80:80
@@ -89,6 +90,8 @@ jobs:
         docker exec ${{ job.services.webserver.id }} bash -c "/var/www/html/.devpanel/custom_package_installer.sh"
         echo "INSTALL DRUPAL"
         docker exec ${{ job.services.webserver.id }} bash -c "/var/www/html/scripts/init.sh"
+        echo "VERIFY PREINSTALLED PROVIDER"
+        docker exec ${{ job.services.webserver.id }} /var/www/html/docroot/vendor/bin/drush --root=/var/www/html/docroot/web pm:list --type=module --status=enabled --field=name | grep -Fx ai_provider_amazeeio
         echo "DUMPS DATABASE + STATIC FILE"
         docker exec ${{ job.services.webserver.id }} bash -c "/var/www/html/.devpanel/create_quickstart.sh"
 
