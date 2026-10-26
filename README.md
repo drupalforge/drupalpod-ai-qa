@@ -131,9 +131,9 @@ Note: `DP_AI_VIRTUAL_KEY` support is not fully integrated or tested yet.
 | `DP_EXTRA_MODULES` | Extra modules to include (comma-separated, optionally `module:constraint`, capped by MAX_EXTRA_MODULES) | `ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text` |
 | `DP_FORCE_DEPENDENCIES` | `1` = lenient mode (relax constraints), `0` = strict | `1` |
 
-Extra modules accept Composer constraints, for example `ai_provider_amazeeio:1.2.7`.
+Extra modules accept Composer constraints, for example `ai_provider_amazeeio:1.3.7`.
 Use spaces, not commas, within a constraint. Without a constraint, Composer selects
-a compatible release. Image builds preinstall the provider this way (1.2.7 on
+a compatible release. Image builds preinstall the provider this way (1.3.7 on
 PHP 8.2) and leave `DP_TEST_MODULE` and `DP_TEST_MODULE_VERSION` for container startup.
 
 ### Test Module Settings

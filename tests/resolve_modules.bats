@@ -113,7 +113,7 @@ teardown() {
     workflow="$PROJECT_ROOT/.github/workflows/docker-publish-image.yml"
     run grep -E '^[[:space:]]+DP_TEST_MODULE(_VERSION)?:' "$workflow"
     [ "$status" -eq 1 ]
-    grep -Fq 'ai_provider_amazeeio:1.2.7' "$workflow"
+    grep -Fq 'ai_provider_amazeeio:1.3.7' "$workflow"
     grep -Fq 'ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text' "$workflow"
     grep -Fq 'pm:list --type=module --status=enabled --field=name | grep -Fx ai_provider_amazeeio' "$workflow"
 }
