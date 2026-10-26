@@ -20,9 +20,8 @@ setup() {
 }
 JSON
 
-    eval "$(sed -n '/^write_manifest_from_lock()/,/^}/p' "$PROJECT_ROOT/scripts/resolve_modules.sh")"
     source "$PROJECT_ROOT/scripts/lib/common.sh"
-    for function in contains_package add_optional_module collect_optional_modules; do
+    for function in write_manifest_from_lock contains_package add_optional_module collect_optional_modules; do
         eval "$(sed -n "/^${function}()/,/^}/p" "$PROJECT_ROOT/scripts/resolve_modules.sh")"
     done
     REQUIRED_PACKAGES=()
