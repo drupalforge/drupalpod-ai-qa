@@ -118,5 +118,6 @@ teardown() {
     grep -Fq 'SA-CONTRIB-2026-134' "$workflow"
     grep -Fq '"on-audit":false' "$workflow"
     grep -Fq 'ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text' "$workflow"
+    grep -Fq "DP_AI_PROVIDER: 'NULL'" "$workflow"
     grep -Fq 'pm:list --type=module --status=enabled --field=name | grep -Fx ai_provider_amazeeio' "$workflow"
 }

@@ -24,6 +24,17 @@ setup() {
     [ "$DP_STARTER_TEMPLATE" = "cms" ]
 }
 
+@test "DP_AI_PROVIDER=NULL skips CMS provider setup without removing requested modules" {
+    unset DP_AI_PROVIDER DP_EXTRA_MODULES
+    export DP_STARTER_TEMPLATE="cms"
+    export DP_AI_PROVIDER="NULL"
+    export DP_EXTRA_MODULES="ai_provider_amazeeio"
+    source scripts/fallback_setup.sh
+
+    [ -z "$DP_AI_PROVIDER" ]
+    [ "$DP_EXTRA_MODULES" = "ai_provider_amazeeio" ]
+}
+
 @test "DP_VERSION defaults to empty for CMS (latest stable)" {
     export DP_STARTER_TEMPLATE="cms"
     source scripts/fallback_setup.sh
