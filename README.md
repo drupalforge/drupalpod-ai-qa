@@ -135,6 +135,8 @@ Extra modules accept Composer constraints, for example `ai_provider_amazeeio:1.2
 Use spaces, not commas, within a constraint. Without a constraint, Composer selects
 a compatible release. Image builds preinstall the provider this way (1.2.7 on
 PHP 8.2) and leave `DP_TEST_MODULE` and `DP_TEST_MODULE_VERSION` for container startup.
+The PHP 8.2 image allows advisory SA-CONTRIB-2026-134 to avoid blocking this
+PHP-compatible release; Composer still reports the advisory during audits.
 
 ### Test Module Settings
 
