@@ -88,6 +88,9 @@ jobs:
         docker exec ${{ job.services.webserver.id }} bash -c "git config --global --add safe.directory /var/www/html/docroot"
         echo "INSTALL CUSTOM PACKAGE"
         docker exec ${{ job.services.webserver.id }} bash -c "/var/www/html/.devpanel/custom_package_installer.sh"
+        if [[ "${{ endsWith(inputs.webserver_image, ':8.2-base-ai') }}" == "true" ]]; then
+          docker exec ${{ job.services.webserver.id }} composer config --global --json policy.advisories.ignore-id '{"SA-CONTRIB-2026-134":{"on-audit":false,"reason":"PHP 8.2 requires ai_provider_amazeeio 1.2.7; newer provider releases require PHP 8.3."}}'
+        fi
         echo "INSTALL DRUPAL"
         docker exec ${{ job.services.webserver.id }} bash -c "/var/www/html/scripts/init.sh"
         echo "VERIFY PREINSTALLED PROVIDER"
