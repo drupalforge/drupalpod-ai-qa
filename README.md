@@ -121,7 +121,7 @@ python3 -m mkdocs serve
 | Variable | Purpose                                                               | Default |
 |----------|-----------------------------------------------------------------------|---------|
 | `DP_STARTER_TEMPLATE` | `cms` or `core`                                                       | `cms` |
-| `DP_VERSION` | Drupal version (e.g., `2.x`, `11.2.8`)                                | `2.x` for CMS, `11.2.8` for core |
+| `DP_VERSION` | Drupal version (e.g., `2.x`, `11.2.8`) | Empty (auto-detect a compatible version) |
 | `DP_REBUILD` | `1` = force clean rebuild (if 0, prevents destroying project in ddev) | `1` |
 | `DP_NO_DEV` | `1` = skip dev dependencies (PHPStan, testing tools) for faster installs | `0` |
 | `DP_INSTALL_PROFILE` | Drupal install profile                                                | Auto-detect for CMS, `standard` for core |
