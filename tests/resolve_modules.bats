@@ -118,5 +118,8 @@ teardown() {
     grep -Fq 'SA-CONTRIB-2026-134' "$workflow"
     grep -Fq '"on-audit":false' "$workflow"
     grep -Fq 'ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text' "$workflow"
+    run grep -E '^[[:space:]]+DP_AI_PROVIDER:' "$workflow"
+    [ "$status" -eq 1 ]
+    grep -Fq 'docker exec -e DP_AI_PROVIDER=NULL ${{ job.services.webserver.id }} bash -c "/var/www/html/scripts/init.sh"' "$workflow"
     grep -Fq 'pm:list --type=module --status=enabled --field=name | grep -Fx ai_provider_amazeeio' "$workflow"
 }
