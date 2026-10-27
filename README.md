@@ -5,21 +5,26 @@ A build system for QA testing in the Drupal AI ecosystem.
 ## What This Does
 
 Creates Drupal environments (CMS or Core) with AI modules pulled directly from
-git.drupalcode.org as submodules. It is designed to streamline QA by letting
-you pin exact versions, test forks/branches, and validate compatibility quickly.
+git.drupalcode.org as cloned repositories. It is designed to streamline QA by
+letting you pin exact versions, test forks and branches, and validate
+compatibility quickly.
 
 You can drop in a fork + branch (plus version) and the system resolves a
 compatible set of AI modules automatically. If a module is incompatible, it is
 skipped so testing can proceed without manual Composer wrangling.
 
 Example: testing `ai_search` for `^2.0` will check out AI 2.0.x and skip modules
-that only support `^1.2`. All modules are git submodules with live symlinks,
-so edits are immediate.
+that only support `^1.2`. The resolved repositories are cloned into `repos/`
+and wired into the generated Drupal codebase, so edits are immediate.
 
 Goal: make it fast and safe to QA Drupal core/CMS + AI module combinations and
 PR branches without hand-editing constraints.
 
 ## Quick Start
+
+For the full documentation set, see `mkdocs.yml` and the pages under `docs/`.
+
+If you want the local DDEV workflow, start here:
 
 ```bash
 # Clone the repository
@@ -101,10 +106,15 @@ Run `ddev restart` to apply changes.
 
 ## Docs
 
-- `docs/usage.md` — DDEV/DevPanel setup, flow, and configuration notes.
-- `docs/development.md` — developer notes and script reference.
-- `docs/testing.md` — test suite and scenario runner details.
-- `docs/troubleshooting.md` — common build and runtime issues.
+Documentation source lives under `docs/`.
+
+If you want to publish or preview the docs as a documentation site, the repo
+includes a root `mkdocs.yml`.
+
+```bash
+python3 -m pip install mkdocs mkdocs-material pymdown-extensions
+python3 -m mkdocs serve
+```
 
 ## Configuration Reference
 
@@ -184,20 +194,6 @@ When enabled, these plugins:
 - DP_FORCE_DEPENDENCIES=1
 ```
 
-**When to disable (set to `0`):**
-- Testing strict semver compatibility
-- Validating that modules satisfy their declared constraints
-- Production-like dependency resolution
-
-The local plugin lives at `src/ai-lenient-plugin/`. See https://github.com/mglaman/composer-drupal-lenient
-for the upstream inspiration.
-
-### Configuration Files
-
-- **`.ddev/config.yaml`** - System defaults (don't edit)
-- **`.ddev/config.drupal.yaml`** - Your overrides (create this)
-- **`.ddev/config.drupalpod.yaml`** - DevPanel/DrupalForge overrides
-
 ## Docker Images
 
 Pre-built images are available on DockerHub for use with DevPanel:
@@ -210,71 +206,3 @@ drupalforge/drupalpod-ai-qa:latest  # alias for php-8.3-cms
 ```
 
 Images are built via GitHub Actions on push to `1.0.x`. Each image contains a fully installed Drupal site with AI modules pre-configured.
-
-## Technical Reference
-
-### Directory Structure
-
-```
-drupalpod-ai-qa/
-├── .ddev/
-│   ├── config.yaml              # System defaults + DDEV config
-│   └── config.drupal.yaml       # User overrides (create this)
-├── .devpanel/                   # Docker/build scripts + DevPanel assets
-├── scripts/                     # Setup scripts
-│   ├── init.sh                  # Main orchestrator
-│   ├── fallback_setup.sh        # Default env vars + validation
-│   ├── resolve_modules.sh       # Composer resolution + plan
-│   ├── clone_modules.sh         # Git cloning based on plan
-│   └── composer_setup.sh        # Generate composer.json + path repos
-├── repos/                       # Git submodules (AI modules cloned here)
-├── docroot/                     # Drupal install (generated, gitignored)
-├── tests/                       # BATS test suite + scenario runner
-└── logs/                        # Build logs
-```
-
-### Script Orchestration
-
-`scripts/init.sh` runs these steps in order:
-
-1. **fallback_setup.sh** - Sets defaults, validates template/version combinations
-2. **resolve_modules.sh** - Resolves module versions and writes a manifest
-3. **clone_modules.sh** - Clones AI modules defined in the manifest
-4. **composer_setup.sh** - Creates Drupal project, adds path repositories
-5. **Composer operations** - Runs `composer update`
-6. **Drupal installation** - Runs `drush site-install`
-7. **AI provider setup** - Enables the provider module and `drupalpod_ai_qa` if `DP_AI_PROVIDER` is set; a Drush command applies the provider configuration
-
-### Version Resolution
-
-`resolve_modules.sh` builds a temporary Composer project to resolve concrete
-module versions against the selected template and constraints. It writes a plan
-to `logs/ai-manifest.json` that `clone_modules.sh` uses to check out git repos.
-
-When `DP_TEST_MODULE` is set:
-
-1. The test module drives compatibility for `drupal/ai`
-2. Optional ecosystem modules are tested for compatibility and skipped if incompatible
-3. The resolved plan includes AI + the test module + any compatible optional modules
-
-When `DP_FORCE_DEPENDENCIES=1` (default):
-
-1. Lenient plugins are installed to `vendor/` and activated
-2. Constraints on `drupal/ai` and test modules are relaxed to `*` (any version)
-3. For CMS templates, AI resolution happens against Core (bypassing `drupal_cms_ai`)
-4. Optional modules are still tested for genuine compatibility using `--no-plugins`
-
-This allows forcing incompatible versions (e.g., AI 2.0.x + ai_context 1.0.x which requires AI ^1.3)
-while still intelligently skipping truly incompatible optional modules.
-
-
-### Working with Cloned Modules
-
-Modules in `repos/` are symlinked to `docroot/web/modules/contrib/`. Changes are live:
-
-```bash
-ddev ssh
-cd repos/ai_search
-git checkout -b my-branch
-# Make changes - they're immediately live in Drupal
-```

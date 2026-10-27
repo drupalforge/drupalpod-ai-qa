@@ -36,40 +36,57 @@ run_mode_one_strict_attempt() {
         require_args+=("drupal/cms")
     fi
 
-    set +e
-    COMPOSER_OUT=$(composer require --no-interaction "${require_args[@]}" 2>&1)
-    COMPOSER_EXIT=$?
-    set -e
+    local _attempt=0
+    local _max_attempts=${COMPOSER_RETRY_MAX:-3}
+    local _retry_delay=${COMPOSER_RETRY_DELAY:-5}
+    local _composer_tmp
 
-    if [ "$COMPOSER_EXIT" -eq 0 ]; then
-        PRIMARY_RESOLVED=1
-        return
-    fi
+    while [ "$_attempt" -lt "$_max_attempts" ]; do
+        _attempt=$((_attempt + 1))
+        _composer_tmp=$(mktemp)
+        set +e
+        composer require --no-interaction "${require_args[@]}" 2>&1 | tee "$_composer_tmp"
+        COMPOSER_EXIT=${PIPESTATUS[0]}
+        set -e
+        COMPOSER_OUT=$(cat "$_composer_tmp")
+        rm -f "$_composer_tmp"
 
-    CLASSIFICATION=$(classify_composer_failure "$COMPOSER_OUT")
-    if [ "$COMPOSER_EXIT" -eq 2 ] && [ "$CLASSIFICATION" = "dependency_conflict" ]; then
-        printf '%s\n' "$COMPOSER_OUT"
-        log_warn "Clean resolve failed — escalating to Mode 4"
-        MODE=4
-        FORCED_REASON_LOG="$LOG_DIR/resolve-failure.log"
-        printf '%s\n' "$COMPOSER_OUT" > "$FORCED_REASON_LOG"
-        FORCED_REASON=$(printf '%s\n' "$COMPOSER_OUT" | awk '
-            /^  Problem 1/ {in_problem=1; next}
-            in_problem && /^    - / {sub(/^    - /, ""); print; exit}
-            in_problem && !/^    / {in_problem=0}
-        ')
-        if [ -z "$FORCED_REASON" ]; then
-            FORCED_REASON=$(printf '%s\n' "$COMPOSER_OUT" | grep -m1 "Problem 1" || true)
+        if [ "$COMPOSER_EXIT" -eq 0 ]; then
+            PRIMARY_RESOLVED=1
+            return
         fi
-        if [ -z "$FORCED_REASON" ]; then
-            FORCED_REASON=$(printf '%s\n' "$COMPOSER_OUT" | grep -m1 "Your requirements could not be resolved" || true)
+
+        CLASSIFICATION=$(classify_composer_failure "$COMPOSER_OUT")
+
+        if [ "$COMPOSER_EXIT" -eq 2 ] && [ "$CLASSIFICATION" = "dependency_conflict" ]; then
+            printf '%s\n' "$COMPOSER_OUT"
+            log_warn "Clean resolve failed — escalating to Mode 4"
+            MODE=4
+            FORCED_REASON_LOG="$LOG_DIR/resolve-failure.log"
+            printf '%s\n' "$COMPOSER_OUT" > "$FORCED_REASON_LOG"
+            FORCED_REASON=$(printf '%s\n' "$COMPOSER_OUT" | awk '
+                /^  Problem 1/ {in_problem=1; next}
+                in_problem && /^    - / {sub(/^    - /, ""); print; exit}
+                in_problem && !/^    / {in_problem=0}
+            ')
+            if [ -z "$FORCED_REASON" ]; then
+                FORCED_REASON=$(printf '%s\n' "$COMPOSER_OUT" | grep -m1 "Problem 1" || true)
+            fi
+            if [ -z "$FORCED_REASON" ]; then
+                FORCED_REASON=$(printf '%s\n' "$COMPOSER_OUT" | grep -m1 "Your requirements could not be resolved" || true)
+            fi
+            [ -n "$FORCED_REASON" ] || FORCED_REASON="Dependency conflict during clean resolve"
+            return
         fi
-        [ -n "$FORCED_REASON" ] || FORCED_REASON="Dependency conflict during clean resolve"
-        return
-    fi
+
+        if [ "$_attempt" -lt "$_max_attempts" ]; then
+            log_warn "Network failure on attempt ${_attempt}/${_max_attempts} — retrying in ${_retry_delay}s..."
+            sleep "$_retry_delay"
+        fi
+    done
 
     printf '%s\n' "$COMPOSER_OUT"
-    log_error "Infrastructure failure — cannot proceed"
+    log_error "Infrastructure failure after ${_max_attempts} attempts — cannot proceed"
     write_error_manifest "$MANIFEST_FILE" "1" "error_infra" "" "" "$STARTER_TEMPLATE" "$DP_VERSION"
     exit 1
 }
@@ -190,18 +207,37 @@ run_mode_four_force_attempt() {
         require_args+=("drupal/cms")
     fi
 
-    set +e
-    COMPOSER_OUT=$(composer require --with-all-dependencies --no-interaction "${require_args[@]}" 2>&1)
-    COMPOSER_EXIT=$?
-    set -e
+    local _attempt=0
+    local _max_attempts=${COMPOSER_RETRY_MAX:-3}
+    local _retry_delay=${COMPOSER_RETRY_DELAY:-5}
+    local _composer_tmp
 
-    if [ "$COMPOSER_EXIT" -eq 0 ]; then
-        COMPATIBILITY="forced"
-        PRIMARY_RESOLVED=1
-        return
-    fi
+    while [ "$_attempt" -lt "$_max_attempts" ]; do
+        _attempt=$((_attempt + 1))
+        _composer_tmp=$(mktemp)
+        set +e
+        composer require --with-all-dependencies --no-interaction "${require_args[@]}" 2>&1 | tee "$_composer_tmp"
+        COMPOSER_EXIT=${PIPESTATUS[0]}
+        set -e
+        COMPOSER_OUT=$(cat "$_composer_tmp")
+        rm -f "$_composer_tmp"
 
-    CLASSIFICATION=$(classify_composer_failure "$COMPOSER_OUT")
+        if [ "$COMPOSER_EXIT" -eq 0 ]; then
+            COMPATIBILITY="forced"
+            PRIMARY_RESOLVED=1
+            return
+        fi
+
+        CLASSIFICATION=$(classify_composer_failure "$COMPOSER_OUT")
+        if [ "$CLASSIFICATION" = "dependency_conflict" ]; then
+            break
+        fi
+        if [ "$_attempt" -lt "$_max_attempts" ]; then
+            log_warn "Network failure on attempt ${_attempt}/${_max_attempts} — retrying in ${_retry_delay}s..."
+            sleep "$_retry_delay"
+        fi
+    done
+
     printf '%s\n' "$COMPOSER_OUT"
     if [ "$COMPOSER_EXIT" -eq 2 ] && [ "$CLASSIFICATION" = "dependency_conflict" ]; then
         write_error_manifest "$MANIFEST_FILE" "4" "error_unresolvable" "$FORCED_REASON" "$FORCED_REASON_LOG" "$STARTER_TEMPLATE" "$DP_VERSION"

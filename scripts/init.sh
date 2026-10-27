@@ -133,8 +133,8 @@ time source "$SCRIPT_DIR/clone_modules.sh"
 
 # Install VSCode extensions.
 if [ -n "${DP_VSCODE_EXTENSIONS:-}" ]; then
-  IFS=','
-  for value in $DP_VSCODE_EXTENSIONS; do
+  IFS=',' read -ra _vscode_extensions <<< "$DP_VSCODE_EXTENSIONS"
+  for value in "${_vscode_extensions[@]}"; do
     time code-server --install-extension "$value"
   done
 fi
@@ -198,40 +198,57 @@ if [ "${DP_NO_DEV:-0}" = "1" ]; then
   echo "Skipping dev dependencies (DP_NO_DEV=1)..."
 fi
 
-COMPOSER_INSTALL_EXIT=0
-COMPOSER_INSTALL_OUT=""
-if [ -f composer.lock ]; then
-  echo 'Running composer install...'
+run_composer_live() {
+  local label="$1"
+  local log_file
+  log_file=$(mktemp)
+  shift
+  echo "$label"
   set +e
-  COMPOSER_INSTALL_OUT=$(time composer -n install --prefer-dist --no-progress $COMPOSER_DEV_FLAG 2>&1)
-  COMPOSER_INSTALL_EXIT=$?
+  time composer "$@" 2>&1 | tee "$log_file"
+  local exit_code=${PIPESTATUS[0]}
   set -e
-  echo "$COMPOSER_INSTALL_OUT"
+  COMPOSER_LIVE_OUT=$(cat "$log_file")
+  rm -f "$log_file"
+  return "$exit_code"
+}
+
+COMPOSER_INSTALL_EXIT=0
+if [ -f composer.lock ]; then
+  run_composer_live 'Running composer install...' \
+    -n install --prefer-dist --no-progress $COMPOSER_DEV_FLAG || COMPOSER_INSTALL_EXIT=$?
 fi
 
 if [ ! -f composer.lock ] || [ "$COMPOSER_INSTALL_EXIT" -ne 0 ]; then
   if [ -f composer.lock ]; then
     echo "Composer install failed (exit=$COMPOSER_INSTALL_EXIT), falling back to composer update..."
+    UPDATE_ARGS=(-n update --prefer-dist --no-progress $COMPOSER_DEV_FLAG)
+    UPDATE_LABEL='Falling back to full composer update...'
+  elif [ -f "$LOG_DIR/resolver.lock" ] && [ -n "${COMPATIBLE_MODULES:-}" ]; then
+    # Resolver already solved the full dependency tree — seed the main build
+    # from that lock and only update the AI packages (switching from Packagist
+    # to local path repos). Everything else stays at the resolver-locked versions.
+    echo 'Seeding composer.lock from resolver, updating AI packages only...'
+    cp "$LOG_DIR/resolver.lock" composer.lock
+    AI_UPDATE_ARGS=()
+    IFS=',' read -ra _ai_modules <<< "$COMPATIBLE_MODULES"
+    for _m in "${_ai_modules[@]}"; do
+      AI_UPDATE_ARGS+=("drupal/${_m// /}")
+    done
+    UPDATE_ARGS=(-n update --prefer-dist --no-progress $COMPOSER_DEV_FLAG "${AI_UPDATE_ARGS[@]}" --with-dependencies)
+    UPDATE_LABEL="Updating AI packages against resolver lock (${#AI_UPDATE_ARGS[@]} packages)..."
   else
-    echo 'No composer.lock found, running composer update...'
+    echo 'No composer.lock found, running full composer update...'
+    UPDATE_ARGS=(-n update --prefer-dist --no-progress $COMPOSER_DEV_FLAG)
+    UPDATE_LABEL='Running full composer update...'
   fi
 
-  set +e
-  COMPOSER_UPDATE_OUT=$(time composer -n update --prefer-dist --no-progress $COMPOSER_DEV_FLAG 2>&1)
-  COMPOSER_UPDATE_EXIT=$?
-  set -e
-  echo "$COMPOSER_UPDATE_OUT"
-
-  if [ "$COMPOSER_UPDATE_EXIT" -ne 0 ]; then
-    COMPOSER_UPDATE_CLASSIFICATION=$(classify_composer_failure "$COMPOSER_UPDATE_OUT")
-    if [ "$COMPOSER_UPDATE_EXIT" -eq 2 ] && [ "$COMPOSER_UPDATE_CLASSIFICATION" = "dependency_conflict" ]; then
-      echo "Composer update failed (exit=$COMPOSER_UPDATE_EXIT, classification=$COMPOSER_UPDATE_CLASSIFICATION). Stopping."
-      exit 1
-    fi
-
+  run_composer_live "$UPDATE_LABEL" "${UPDATE_ARGS[@]}" || {
+    COMPOSER_UPDATE_EXIT=$?
+    COMPOSER_UPDATE_CLASSIFICATION=$(classify_composer_failure "$COMPOSER_LIVE_OUT")
     echo "Composer update failed (exit=$COMPOSER_UPDATE_EXIT, classification=$COMPOSER_UPDATE_CLASSIFICATION). Stopping."
     exit 1
-  fi
+  }
 fi
 
 # Ensure drush binary exists. If drush ended up only in require-dev of the template
@@ -288,6 +305,12 @@ if [ "${DP_REBUILD:-0}" = "1" ] || ! $DRUSH status --field=bootstrap | grep -q "
     time $DRUSH -n si "$PROFILE" --db-url="$DB_URL" --account-name=admin --account-pass=admin
   fi
 
+  # Rebuild cache so Drupal's extension discovery includes modules installed via
+  # Composer path repos (symlinks). Without this, pm:enable fails immediately
+  # after drush si on some hosted environments (e.g. DrupalForge) because the
+  # symlinked modules are not yet in the cached extension list.
+  $DRUSH cr
+
   # Enable AI modules.
   source "$SCRIPT_DIR/enable_ai_modules.sh"
 
@@ -321,6 +344,23 @@ else
   time $DRUSH -n updb
   time $DRUSH -n pm:enable drupalpod_build_info || true
   source "$SCRIPT_DIR/write_build_info.sh"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Restore composer.json in aliased repos
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# clone_modules.sh injects a version/branch-alias into composer.json so
+# Composer can resolve path repos correctly. All Composer work is done by
+# this point, so restore the original file to keep the working tree clean.
+if [ -n "${DP_ALIAS_MODULES:-}" ]; then
+  IFS=',' read -ra _alias_modules <<< "$DP_ALIAS_MODULES"
+  for _mod in "${_alias_modules[@]}"; do
+    _repo="$PROJECT_ROOT/repos/${_mod// /}"
+    if [ -f "$_repo/composer.json" ] && git -C "$_repo" diff --quiet -- composer.json 2>/dev/null; then
+      continue
+    fi
+    git -C "$_repo" checkout -- composer.json 2>/dev/null || true
+  done
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -4,7 +4,7 @@
   "description": "DrupalPod AI QA Environment with automated testing",
   "scripts": {
     "test": "bats tests/*.bats",
-    "test:unit": "bats tests/clone_ai_modules.bats tests/fallback_setup.bats",
+    "test:unit": "bats tests/clone_modules.bats tests/fallback_setup.bats tests/resolve_modules.bats",
     "test:integration": "bats tests/integration.bats",
     "test:verbose": "bats -t tests/*.bats"
   },

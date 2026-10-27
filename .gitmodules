@@ -23,6 +23,6 @@
 	url = https://git.drupalcode.org/project/ai_provider_anthropic.git
 	ignore = dirty
 [submodule "repos/ai_provider_openai"]
-	path = repos/ai_provider_anthropic
+	path = repos/ai_provider_openai
 	url = https://git.drupalcode.org/project/ai_provider_openai.git
 	ignore = dirty

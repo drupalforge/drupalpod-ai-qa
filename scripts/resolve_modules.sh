@@ -583,5 +583,12 @@ if [ -z "${DP_VERSION:-}" ] && [ "${STARTER_TEMPLATE:-cms}" = "cms" ]; then
     log_info "Auto-detected CMS version: $RESOLVED_CMS"
 fi
 
+# Save the resolver lock so the main build can use it as a starting point,
+# skipping a full cold Composer solve.
+if [ -f "$TMP_DIR/composer.lock" ]; then
+    cp "$TMP_DIR/composer.lock" "$LOG_DIR/resolver.lock"
+    log_info "Saved resolver lock to: $LOG_DIR/resolver.lock"
+fi
+
 # Final output.
 log_info "Resolved AI module plan written to: $MANIFEST_FILE"

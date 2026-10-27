@@ -153,18 +153,19 @@ Example resolution mode scenario:
 }
 ```
 
-## CI Integration
+## GitLab CI
 
-GitLab CI workflow: `.gitlab-ci.yml`
+The current GitLab pipeline is defined in `.gitlab-ci.yml`.
 
-Three-layer pipeline:
+The main test layers are:
 
-1. **Layer 1 (smoke)**: `bats` unit tests + `template-version-smoke` (6 scenarios in parallel)
-2. **Layer 2 (resolution)**: `drupal-resolution-matrix` (14 resolution mode scenarios in parallel)
-3. **Layer 3 (extended)**: `scenario-matrix` (30-way parallel compatibility suite)
+1. `bats`: shell test coverage for the script logic
+2. `template-version-smoke`: a small scenario matrix over `tests/scenarios-template-version.json`
+3. `drupal-resolution-matrix`: resolution mode coverage over `tests/scenarios-drupal-resolution.json`
+4. `scenario-matrix`: broader compatibility coverage over `tests/scenarios.json`
 
-Jobs:
-- `bats` - Unit tests (`npm ci` + `npm test`)
-- `template-version-smoke` - 6-way parallel matrix using `tests/scenarios-template-version.json`
-- `drupal-resolution-matrix` - 14-way parallel matrix using `tests/scenarios-drupal-resolution.json`
-- `scenario-matrix` - 30-way parallel matrix using `tests/scenarios.json`
+Other CI jobs in the same file include:
+
+- `custom-module-phpunit`: runs PHPUnit for the repo-managed custom modules
+- `mkdocs`: validates the documentation build
+- `pages`: publishes the MkDocs site on the default branch

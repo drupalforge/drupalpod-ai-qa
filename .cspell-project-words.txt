@@ -4,6 +4,7 @@ amazeeio
 dpaiqa
 argjson
 behaviour
+organised
 cpath
 cset
 csvg
@@ -20,10 +21,13 @@ ofer
 popperjs
 preclone
 precloned
+pymdown
+pymdownx
 rateit
 relisten
 shaal
 slurpfile
+superfences
 textcounter
 tippyjs
 todate
