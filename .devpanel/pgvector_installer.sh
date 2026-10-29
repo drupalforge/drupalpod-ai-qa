@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-# Refresh the configured APT sources.
-time sudo apt-get update
 . /etc/os-release
 DEBIAN_VERSION=${VERSION_ID%%.*}
 
