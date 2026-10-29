@@ -45,7 +45,7 @@ jobs:
           DP_IMAGE: drupalforge/drupalpod-ai-qa:${{ inputs.image_tag_suffix || 'latest' }}
           DP_STARTER_TEMPLATE: ${{ inputs.image_tag_suffix || 'cms' }}
           # 1.2.7 is the last release compatible with PHP 8.2.
-          DP_EXTRA_MODULES: ${{ endsWith(inputs.webserver_image, ':8.2-base-ai') && 'ai_search,ai_agents,ai_provider_amazeeio:1.2.7,ai_image_alt_text' || 'ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text' }}
+          DP_EXTRA_MODULES: ${{ startsWith(inputs.webserver_image, 'devpanel/php:8.2-base') && 'ai_search,ai_agents,ai_provider_amazeeio:1.2.7,ai_image_alt_text' || 'ai_search,ai_agents,ai_provider_amazeeio,ai_image_alt_text' }}
           DP_REBUILD: '1'
         ports:
           - 80:80
@@ -88,7 +88,7 @@ jobs:
         docker exec ${{ job.services.webserver.id }} bash -c "git config --global --add safe.directory /var/www/html/docroot"
         echo "INSTALL CUSTOM PACKAGE"
         docker exec ${{ job.services.webserver.id }} bash -c "/var/www/html/.devpanel/custom_package_installer.sh"
-        if [[ "${{ endsWith(inputs.webserver_image, ':8.2-base-ai') }}" == "true" ]]; then
+        if [[ "${{ startsWith(inputs.webserver_image, 'devpanel/php:8.2-base') }}" == "true" ]]; then
           docker exec ${{ job.services.webserver.id }} composer config --global --json policy.advisories.ignore-id '{"SA-CONTRIB-2026-134":{"on-audit":false,"reason":"PHP 8.2 requires ai_provider_amazeeio 1.2.7; newer provider releases require PHP 8.3."}}'
         fi
         echo "INSTALL DRUPAL"
@@ -106,7 +106,7 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Set env to PHP 8.2 environment
-      if: endsWith(inputs.webserver_image, ':8.2-base-ai')
+      if: startsWith(inputs.webserver_image, 'devpanel/php:8.2-base')
       run: |
         SUFFIX="${{ inputs.image_tag_suffix }}"
         if [ -n "$SUFFIX" ]; then

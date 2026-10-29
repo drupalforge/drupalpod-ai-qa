@@ -114,6 +114,7 @@ teardown() {
     run grep -E '^[[:space:]]+DP_TEST_MODULE(_VERSION)?:' "$workflow"
     [ "$status" -eq 1 ]
     grep -Fq 'ai_provider_amazeeio:1.2.7' "$workflow"
+    [ "$(grep -Fc "startsWith(inputs.webserver_image, 'devpanel/php:8.2-base')" "$workflow")" -eq 3 ]
     grep -Fq 'policy.advisories.ignore-id' "$workflow"
     grep -Fq 'SA-CONTRIB-2026-134' "$workflow"
     grep -Fq '"on-audit":false' "$workflow"
