@@ -1,26 +1,41 @@
 #!/usr/bin/env bash
 
-# Configure PGDG only when the base image has not already done so.
-if ! grep -RqsE '^[[:space:]]*(deb[[:space:]].*https?://apt\.postgresql\.org|URIs:[[:space:]]*https?://apt\.postgresql\.org)' /etc/apt/sources.list /etc/apt/sources.list.d; then
-  time sudo apt-get update
-  time sudo apt-get install -y ca-certificates curl gnupg
+# Refresh the configured APT sources before checking package availability.
+time sudo apt-get update
+. /etc/os-release
 
-  . /etc/os-release
-  sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
-  if ! (set -o pipefail; curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg); then
-    echo "ERROR: failed to install the PostgreSQL APT signing key!"
-    exit 1
-  fi
-  echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+# Add the official PostgreSQL repository only if Debian sources lack a required package.
+if [ "$ID" = debian ]; then
+  for package in postgresql-17 postgresql-client-17 postgresql-17-pgvector; do
+    candidate=$(apt-cache policy "$package" | awk '/Candidate:/ {print $2}')
+    if [ -z "$candidate" ] || [ "$candidate" = "(none)" ]; then
+      if ! grep -RqsE '^[[:space:]]*(deb[[:space:]].*https?://apt\.postgresql\.org|URIs:[[:space:]]*https?://apt\.postgresql\.org)' /etc/apt/sources.list /etc/apt/sources.list.d; then
+        time sudo apt-get install -y ca-certificates curl gnupg
+        sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
+        if ! (set -o pipefail; curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg); then
+          echo "ERROR: failed to install the PostgreSQL APT signing key!"
+          exit 1
+        fi
+        echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+      fi
+      time sudo apt-get update
+      break
+    fi
+  done
 fi
 
-time sudo apt-get update
+# Verify the required pgvector package is available before installation.
+candidate=$(apt-cache policy postgresql-17-pgvector | awk '/Candidate:/ {print $2}')
+if [ -z "$candidate" ] || [ "$candidate" = "(none)" ]; then
+  echo "ERROR: postgresql-17-pgvector is not available from configured APT sources!"
+  exit 1
+fi
 
-#== Install postgresql on the host.
+# Install PostgreSQL 17 and pgvector extension.
 echo 'PostgreSQL is not installed. Installing it now.'
-# Install PostgreSQL 17 and pgvector extension
 time sudo apt-get install -y postgresql-17 postgresql-client-17 postgresql-17-pgvector
-# Verify installation
+
+# Verify installation.
 if ! dpkg -l | grep -q postgresql-17-pgvector; then
   echo "ERROR: postgresql-17-pgvector package not installed!"
   exit 1
