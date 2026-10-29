@@ -4,10 +4,14 @@ setup() {
     INSTALLER="$BATS_TEST_DIRNAME/../.devpanel/pgvector_installer.sh"
 }
 
-@test "uses the PGDG repository configured by the base image" {
-    run grep -F 'apt.postgresql.org' "$INSTALLER"
+@test "configures PGDG only when the base image has not already done so" {
+    run grep -Fq 'if ! grep -RqsE' "$INSTALLER"
 
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 0 ]
+
+    run grep -Fq 'https://apt.postgresql.org/pub/repos/apt' "$INSTALLER"
+
+    [ "$status" -eq 0 ]
 }
 
 @test "still installs PostgreSQL 17 and pgvector" {

@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 
-# DevPanel PHP base images configure PGDG and provide the PostgreSQL client.
-# Install the PostgreSQL server and pgvector extension required by the app.
+# Configure PGDG only when the base image has not already done so.
+if ! grep -RqsE '^[[:space:]]*(deb[[:space:]].*https?://apt\.postgresql\.org|URIs:[[:space:]]*https?://apt\.postgresql\.org)' /etc/apt/sources.list /etc/apt/sources.list.d; then
+  time sudo apt-get update
+  time sudo apt-get install -y ca-certificates curl gnupg
+
+  . /etc/os-release
+  sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
+  if ! (set -o pipefail; curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg); then
+    echo "ERROR: failed to install the PostgreSQL APT signing key!"
+    exit 1
+  fi
+  echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+fi
+
 time sudo apt-get update
 
 #== Install postgresql on the host.
