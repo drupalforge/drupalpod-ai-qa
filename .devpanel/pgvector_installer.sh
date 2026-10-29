@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 
+# Debian 11 and 12 need PGDG for PostgreSQL 17.
 . /etc/os-release
 DEBIAN_VERSION=${VERSION_ID%%.*}
-
-# Debian 11 and 12 need PGDG for PostgreSQL 17.
 if [ "$ID" = debian ] && (( DEBIAN_VERSION < 13 )); then
   time sudo apt-get install -y postgresql-common ca-certificates
   sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
