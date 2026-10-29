@@ -3,13 +3,19 @@
 #Update sudo (might be overkill).
 time sudo apt-get update
 
+pgdg_repository_configured() {
+  grep -RqsE '^[[:space:]]*(deb(-src)?[[:space:]]+.*https?://apt\.postgresql\.org/pub/repos/apt|URIs:[[:space:]]+.*https?://apt\.postgresql\.org/pub/repos/apt)' "$@" 2>/dev/null
+}
+
 # Prepare so it works in devpanel also.
 sudo apt -y install curl ca-certificates apt-transport-https
-sudo install -d /usr/share/postgresql-common/pgdg
-sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
-. /etc/os-release
-sudo sh -c "echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $VERSION_CODENAME-pgdg main' > /etc/apt/sources.list.d/pgdg.list"
-sudo apt-get update
+if ! pgdg_repository_configured /etc/apt/sources.list /etc/apt/sources.list.d; then
+  sudo install -d /usr/share/postgresql-common/pgdg
+  sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+  . /etc/os-release
+  sudo sh -c "echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $VERSION_CODENAME-pgdg main' > /etc/apt/sources.list.d/pgdg.list"
+  sudo apt-get update
+fi
 
 #== Install postgresql on the host.
 echo 'PostgreSQL is not installed. Installing it now.'
