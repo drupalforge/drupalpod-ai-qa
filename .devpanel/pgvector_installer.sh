@@ -1,34 +1,21 @@
 #!/usr/bin/env bash
 
-# Refresh the configured APT sources before checking package availability.
+# Refresh the configured APT sources.
 time sudo apt-get update
 . /etc/os-release
 
-# Add the official PostgreSQL repository only if Debian sources lack a required package.
-if [ "$ID" = debian ]; then
-  for package in postgresql-17 postgresql-client-17 postgresql-17-pgvector; do
-    candidate=$(apt-cache policy "$package" | awk '/Candidate:/ {print $2}')
-    if [ -z "$candidate" ] || [ "$candidate" = "(none)" ]; then
-      if ! grep -RqsE '^[[:space:]]*(deb[[:space:]].*https?://apt\.postgresql\.org|URIs:[[:space:]]*https?://apt\.postgresql\.org)' /etc/apt/sources.list /etc/apt/sources.list.d; then
-        time sudo apt-get install -y ca-certificates curl gnupg
-        sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
-        if ! (set -o pipefail; curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg); then
-          echo "ERROR: failed to install the PostgreSQL APT signing key!"
-          exit 1
-        fi
-        echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
-      fi
-      time sudo apt-get update
-      break
+# Debian 11 and 12 do not provide PostgreSQL 17 in their standard repositories.
+if [ "$ID" = debian ] && [[ "$VERSION_CODENAME" == bullseye || "$VERSION_CODENAME" == bookworm ]]; then
+  if ! grep -RqsE '^[[:space:]]*(deb[[:space:]].*https?://apt\.postgresql\.org|URIs:[[:space:]]*https?://apt\.postgresql\.org)' /etc/apt/sources.list /etc/apt/sources.list.d; then
+    time sudo apt-get install -y ca-certificates curl gnupg
+    sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
+    if ! (set -o pipefail; curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg); then
+      echo "ERROR: failed to install the PostgreSQL APT signing key!"
+      exit 1
     fi
-  done
-fi
-
-# Verify the required pgvector package is available before installation.
-candidate=$(apt-cache policy postgresql-17-pgvector | awk '/Candidate:/ {print $2}')
-if [ -z "$candidate" ] || [ "$candidate" = "(none)" ]; then
-  echo "ERROR: postgresql-17-pgvector is not available from configured APT sources!"
-  exit 1
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+  fi
+  time sudo apt-get update
 fi
 
 # Install PostgreSQL 17 and pgvector extension.

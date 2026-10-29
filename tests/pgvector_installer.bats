@@ -4,24 +4,24 @@ setup() {
     INSTALLER="$BATS_TEST_DIRNAME/../.devpanel/pgvector_installer.sh"
 }
 
-@test "refreshes APT indexes and checks package candidates before configuring PGDG" {
+@test "configures PGDG for Debian Bullseye and Bookworm" {
     run grep -Fq 'time sudo apt-get update' "$INSTALLER"
 
     [ "$status" -eq 0 ]
 
-    run grep -Fq 'apt-cache policy "$package"' "$INSTALLER"
+    run grep -Fq '[[ "$VERSION_CODENAME" == bullseye || "$VERSION_CODENAME" == bookworm ]]' "$INSTALLER"
 
     [ "$status" -eq 0 ]
 
-    run grep -Fq 'if [ "$ID" = debian ]; then' "$INSTALLER"
+    run grep -Fq 'https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main' "$INSTALLER"
 
     [ "$status" -eq 0 ]
 }
 
-@test "adds official PGDG and refreshes indexes when a required package is unavailable" {
-    run grep -Fq 'https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main' "$INSTALLER"
+@test "does not query package candidates to select the PostgreSQL repository" {
+    run grep -Fq 'apt-cache policy' "$INSTALLER"
 
-    [ "$status" -eq 0 ]
+    [ "$status" -eq 1 ]
 
     [ "$(grep -Fc 'time sudo apt-get update' "$INSTALLER")" -eq 2 ]
 }
