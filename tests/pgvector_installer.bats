@@ -4,26 +4,26 @@ setup() {
     INSTALLER="$BATS_TEST_DIRNAME/../.devpanel/pgvector_installer.sh"
 }
 
-@test "configures PGDG for Debian Bullseye and Bookworm" {
+@test "configures PGDG for Debian releases below 13 using the official script" {
     run grep -Fq 'time sudo apt-get update' "$INSTALLER"
 
     [ "$status" -eq 0 ]
 
-    run grep -Fq '[[ "$VERSION_CODENAME" == bullseye || "$VERSION_CODENAME" == bookworm ]]' "$INSTALLER"
+    run grep -Fq '(( DEBIAN_VERSION < 13 ))' "$INSTALLER"
 
     [ "$status" -eq 0 ]
 
-    run grep -Fq 'https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main' "$INSTALLER"
+    run grep -Fq '/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh' "$INSTALLER"
 
     [ "$status" -eq 0 ]
 }
 
-@test "does not query package candidates to select the PostgreSQL repository" {
+@test "updates APT indexes after configuring the official repository" {
+    [ "$(grep -Fc 'time sudo apt-get update' "$INSTALLER")" -eq 2 ]
+
     run grep -Fq 'apt-cache policy' "$INSTALLER"
 
     [ "$status" -eq 1 ]
-
-    [ "$(grep -Fc 'time sudo apt-get update' "$INSTALLER")" -eq 2 ]
 }
 
 @test "still installs PostgreSQL 17 and pgvector" {

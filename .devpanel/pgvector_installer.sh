@@ -3,18 +3,12 @@
 # Refresh the configured APT sources.
 time sudo apt-get update
 . /etc/os-release
+DEBIAN_VERSION=${VERSION_ID%%.*}
 
-# Debian 11 and 12 do not provide PostgreSQL 17 in their standard repositories.
-if [ "$ID" = debian ] && [[ "$VERSION_CODENAME" == bullseye || "$VERSION_CODENAME" == bookworm ]]; then
-  if ! grep -RqsE '^[[:space:]]*(deb[[:space:]].*https?://apt\.postgresql\.org|URIs:[[:space:]]*https?://apt\.postgresql\.org)' /etc/apt/sources.list /etc/apt/sources.list.d; then
-    time sudo apt-get install -y ca-certificates curl gnupg
-    sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
-    if ! (set -o pipefail; curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg); then
-      echo "ERROR: failed to install the PostgreSQL APT signing key!"
-      exit 1
-    fi
-    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
-  fi
+# Debian 11 and 12 need PGDG for PostgreSQL 17.
+if [ "$ID" = debian ] && (( DEBIAN_VERSION < 13 )); then
+  time sudo apt-get install -y postgresql-common ca-certificates
+  sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
   time sudo apt-get update
 fi
 
