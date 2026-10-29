@@ -124,3 +124,9 @@ teardown() {
     grep -Fq 'docker exec -e DP_AI_PROVIDER=NULL ${{ job.services.webserver.id }} bash -c "/var/www/html/scripts/init.sh"' "$workflow"
     grep -Fq 'pm:list --type=module --status=enabled --field=name | grep -Fx ai_provider_amazeeio' "$workflow"
 }
+
+@test "image workflow publishes both PHP 8.3 image variants" {
+    workflow="$PROJECT_ROOT/.github/workflows/docker-publish-image.yml"
+
+    [ "$(grep -Fc "startsWith(inputs.webserver_image, 'devpanel/php:8.3-base')" "$workflow")" -eq 3 ]
+}

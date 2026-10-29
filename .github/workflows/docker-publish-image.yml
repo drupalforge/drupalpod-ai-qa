@@ -116,7 +116,7 @@ jobs:
         fi
 
     - name: Set env to PHP 8.3 environment
-      if: endsWith(inputs.webserver_image, ':8.3-base-ai')
+      if: startsWith(inputs.webserver_image, 'devpanel/php:8.3-base')
       run: |
         SUFFIX="${{ inputs.image_tag_suffix }}"
         if [ -n "$SUFFIX" ]; then
@@ -131,13 +131,13 @@ jobs:
         docker push ${{ env.IMAGE_TAG }}
 
     - name: Push to tag latest (CMS only)
-      if: endsWith(inputs.webserver_image, ':8.3-base-ai') && inputs.image_tag_suffix == 'cms'
+      if: startsWith(inputs.webserver_image, 'devpanel/php:8.3-base') && inputs.image_tag_suffix == 'cms'
       run: |
         docker commit ${{ job.services.webserver.id }} drupalforge/drupalpod-ai-qa:latest
         docker push drupalforge/drupalpod-ai-qa:latest
 
     - name: Push to tag core (Core only)
-      if: endsWith(inputs.webserver_image, ':8.3-base-ai') && inputs.image_tag_suffix == 'core'
+      if: startsWith(inputs.webserver_image, 'devpanel/php:8.3-base') && inputs.image_tag_suffix == 'core'
       run: |
         docker commit ${{ job.services.webserver.id }} drupalforge/drupalpod-ai-qa:core
         docker push drupalforge/drupalpod-ai-qa:core
