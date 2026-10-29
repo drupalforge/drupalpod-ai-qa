@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 
-# DevPanel PHP base images configure PGDG and provide the PostgreSQL client.
-# Install the PostgreSQL server and pgvector extension required by the app.
-time sudo apt-get update
+# Debian 11 and 12 need PGDG for PostgreSQL 17.
+. /etc/os-release
+DEBIAN_VERSION=${VERSION_ID%%.*}
+if [ "$ID" = debian ] && (( DEBIAN_VERSION < 13 )); then
+  time sudo apt-get install -y postgresql-common ca-certificates
+  sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+  time sudo apt-get update
+fi
 
-#== Install postgresql on the host.
+# Install PostgreSQL 17 and pgvector extension.
 echo 'PostgreSQL is not installed. Installing it now.'
-# Install PostgreSQL 17 and pgvector extension
 time sudo apt-get install -y postgresql-17 postgresql-client-17 postgresql-17-pgvector
-# Verify installation
+
+# Verify installation.
 if ! dpkg -l | grep -q postgresql-17-pgvector; then
   echo "ERROR: postgresql-17-pgvector package not installed!"
   exit 1
