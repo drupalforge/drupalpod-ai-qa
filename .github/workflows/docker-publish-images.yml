@@ -13,7 +13,7 @@ jobs:
   build-php-8_2-core:
     uses: ./.github/workflows/docker-publish-image.yml
     with:
-      webserver_image: devpanel/php:8.2-base-ai
+      webserver_image: devpanel/php:8.2-base
       drupal_version: '10.6.x'
       image_tag_suffix: core
     secrets: inherit
@@ -21,7 +21,7 @@ jobs:
   build-php-8_3-cms:
     uses: ./.github/workflows/docker-publish-image.yml
     with:
-      webserver_image: devpanel/php:8.3-base-ai
+      webserver_image: devpanel/php:8.3-base
       image_tag_suffix: cms
     secrets: inherit
 
