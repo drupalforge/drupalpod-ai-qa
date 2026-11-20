@@ -6,8 +6,9 @@
 
 setup() {
     PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-    mkdir -p "$PROJECT_ROOT/logs"
-    cat > "$PROJECT_ROOT/logs/composer.lock" <<'JSON'
+    LOCK_FIXTURE="$BATS_TEST_TMPDIR/composer.lock"
+    MANIFEST_OUTPUT="$BATS_TEST_TMPDIR/ai-manifest.json"
+    cat > "$LOCK_FIXTURE" <<'JSON'
 {
   "packages": [
     {"name": "drupal/cms", "version": "2.0.1"},
@@ -23,16 +24,12 @@ JSON
     eval "$(sed -n '/^write_manifest_from_lock()/,/^}/p' "$PROJECT_ROOT/scripts/resolve_modules.sh")"
 }
 
-teardown() {
-    rm -rf "$PROJECT_ROOT/logs"
-}
-
 @test "write_manifest_from_lock filters to requested packages" {
     requested='["drupal/ai","drupal/ai_search"]'
     skipped='[]'
-    write_manifest_from_lock "$PROJECT_ROOT/logs/composer.lock" "$requested" "$skipped" "$PROJECT_ROOT/logs/ai-manifest.json" "cms" "1.2.0" "drupal/cms" "1.2.x-dev"
+    write_manifest_from_lock "$LOCK_FIXTURE" "$requested" "$skipped" "$MANIFEST_OUTPUT" "cms" "1.2.0" "drupal/cms" "1.2.x-dev"
 
-    run jq -r '.packages[].name' "$PROJECT_ROOT/logs/ai-manifest.json"
+    run jq -r '.packages[].name' "$MANIFEST_OUTPUT"
     [ "$status" -eq 0 ]
     [[ "$output" =~ "drupal/ai" ]]
     [[ "$output" =~ "drupal/ai_search" ]]
@@ -42,19 +39,19 @@ teardown() {
 @test "write_manifest_from_lock includes skipped packages" {
     requested='["drupal/ai","drupal/ai_search"]'
     skipped='["drupal/ai_agents"]'
-    write_manifest_from_lock "$PROJECT_ROOT/logs/composer.lock" "$requested" "$skipped" "$PROJECT_ROOT/logs/ai-manifest.json" "cms" "1.2.0" "drupal/cms" "1.2.x-dev"
+    write_manifest_from_lock "$LOCK_FIXTURE" "$requested" "$skipped" "$MANIFEST_OUTPUT" "cms" "1.2.0" "drupal/cms" "1.2.x-dev"
 
-    result=$(jq -r '.skipped_packages[]' "$PROJECT_ROOT/logs/ai-manifest.json")
+    result=$(jq -r '.skipped_packages[]' "$MANIFEST_OUTPUT")
     [ "$result" = "drupal/ai_agents" ]
 }
 
 @test "write_manifest_from_lock records resolved project package and version" {
     requested='["drupal/ai"]'
     skipped='[]'
-    write_manifest_from_lock "$PROJECT_ROOT/logs/composer.lock" "$requested" "$skipped" "$PROJECT_ROOT/logs/ai-manifest.json" "cms" "2.x" "drupal/cms" "2.x-dev"
+    write_manifest_from_lock "$LOCK_FIXTURE" "$requested" "$skipped" "$MANIFEST_OUTPUT" "cms" "2.x" "drupal/cms" "2.x-dev"
 
-    project_package=$(jq -r '.resolved_project_package' "$PROJECT_ROOT/logs/ai-manifest.json")
-    project_version=$(jq -r '.resolved_project_version' "$PROJECT_ROOT/logs/ai-manifest.json")
+    project_package=$(jq -r '.resolved_project_package' "$MANIFEST_OUTPUT")
+    project_version=$(jq -r '.resolved_project_version' "$MANIFEST_OUTPUT")
 
     [ "$project_package" = "drupal/cms" ]
     [ "$project_version" = "2.0.1" ]

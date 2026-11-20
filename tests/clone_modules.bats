@@ -6,8 +6,8 @@
 
 setup() {
     PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-    mkdir -p "$PROJECT_ROOT/logs"
-    cat > "$PROJECT_ROOT/logs/ai-manifest.json" <<'JSON'
+    MANIFEST_FIXTURE="$BATS_TEST_TMPDIR/ai-manifest.json"
+    cat > "$MANIFEST_FIXTURE" <<'JSON'
 {
   "packages": [
     {"name": "drupal/ai", "version": "2.0.0"},
@@ -22,10 +22,6 @@ JSON
     source "$PROJECT_ROOT/scripts/lib/common.sh"
     eval "$(sed -n '/^load_manifest_modules()/,/^}/p' "$PROJECT_ROOT/scripts/clone_modules.sh")"
     eval "$(sed -n '/^load_manifest_skipped_modules()/,/^}/p' "$PROJECT_ROOT/scripts/clone_modules.sh")"
-}
-
-teardown() {
-    rm -rf "$PROJECT_ROOT/logs"
 }
 
 @test "normalize composer version: 2.0.x-dev -> 2.0.x" {
@@ -44,13 +40,13 @@ teardown() {
 }
 
 @test "load_manifest_modules returns package names and versions" {
-    output=$(load_manifest_modules "$PROJECT_ROOT/logs/ai-manifest.json")
+    output=$(load_manifest_modules "$MANIFEST_FIXTURE")
     [[ "$output" =~ "drupal/ai 2.0.0" ]]
     [[ "$output" =~ "drupal/ai_search 2.0.x-dev" ]]
     [[ "$output" =~ "drupal/ai_provider_litellm dev-1.x" ]]
 }
 
 @test "load_manifest_skipped_modules returns skipped package names" {
-    output=$(load_manifest_skipped_modules "$PROJECT_ROOT/logs/ai-manifest.json")
+    output=$(load_manifest_skipped_modules "$MANIFEST_FIXTURE")
     [[ "$output" =~ "drupal/ai_agents" ]]
 }

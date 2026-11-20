@@ -6,8 +6,8 @@
 
 setup() {
     PROJECT_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-    mkdir -p "$PROJECT_ROOT/logs"
-    cat > "$PROJECT_ROOT/logs/ai-manifest.json" <<'JSON'
+    MANIFEST_FIXTURE="$BATS_TEST_TMPDIR/ai-manifest.json"
+    cat > "$MANIFEST_FIXTURE" <<'JSON'
 {
   "packages": [
     {"name": "drupal/ai", "version": "2.0.x-dev"},
@@ -20,10 +20,6 @@ JSON
     # shellcheck disable=SC1090
     source "$PROJECT_ROOT/scripts/lib/common.sh"
     eval "$(sed -n '/^load_manifest_modules()/,/^}/p' "$PROJECT_ROOT/scripts/clone_modules.sh")"
-}
-
-teardown() {
-    rm -rf "$PROJECT_ROOT/logs"
 }
 
 @test "plan modules map to git versions" {
@@ -40,7 +36,7 @@ teardown() {
             [ "$git_version" = "1.x" ]
             ;;
         esac
-    done < <(load_manifest_modules "$PROJECT_ROOT/logs/ai-manifest.json")
+    done < <(load_manifest_modules "$MANIFEST_FIXTURE")
 }
 
 @test "plan module list drives composer modules" {
@@ -53,7 +49,7 @@ teardown() {
         else
             COMPATIBLE_MODULES="$COMPATIBLE_MODULES,$module_name"
         fi
-    done < <(load_manifest_modules "$PROJECT_ROOT/logs/ai-manifest.json")
+    done < <(load_manifest_modules "$MANIFEST_FIXTURE")
 
     [ "$COMPATIBLE_MODULES" = "ai,ai_search,ai_provider_litellm" ]
 }
