@@ -14,7 +14,9 @@ bootstrap_common() {
 
     source "$SCRIPT_DIR/lib/common.sh"
     init_common
-    export COMMON_BOOTSTRAPPED=1
+    # Not exported: child bash processes do not inherit the shared functions,
+    # so each one must bootstrap itself.
+    COMMON_BOOTSTRAPPED=1
 }
 
 bootstrap_common
